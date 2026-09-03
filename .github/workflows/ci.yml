@@ -47,6 +47,11 @@ jobs:
       - name: Package (ad-hoc signed)
         run: scripts/package-release.sh 0.0.0-ci
 
+      # Uploads the zip rather than the .app, which means the download is a
+      # zip inside GitHub's own artifact zip. That is deliberate: uploading the
+      # bundle directly would have upload-artifact re-zip it and flatten every
+      # permission to 644/755, losing the executable bit and breaking the code
+      # signature. Release assets don't go through this and have one layer.
       - uses: actions/upload-artifact@v4
         with:
           name: ReviewBar-ci-build
