@@ -106,7 +106,7 @@ private struct GeneralSettingsTab: View {
 
     private var caption: String {
         LaunchAtLogin.isAvailable
-            ? "ReviewBar starts hidden in the menu bar — no window, no Dock icon."
+            ? "ReviewBar starts in the menu bar, ready when you are."
             : "Only available in an installed app; this build is running from the command line."
     }
 

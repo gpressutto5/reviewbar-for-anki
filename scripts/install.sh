@@ -82,6 +82,6 @@ version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
 	"$APP/Contents/Info.plist" 2>/dev/null || echo "?")
 echo "==> Installed ReviewBar $version"
 echo
-echo "Starting it now. ReviewBar lives in the menu bar — no Dock icon, no window."
+echo "Starting it now — look for ReviewBar's icon in the menu bar."
 echo "Make sure Anki is running with the AnkiConnect add-on installed."
 open "$APP"

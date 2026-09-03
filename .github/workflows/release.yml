@@ -108,23 +108,20 @@ jobs:
           # Most people read these notes and nothing else, so the first-launch
           # step has to be here rather than only in the README.
           body: |
-            ### Install
-
-            The quickest way, which avoids the macOS quarantine warning entirely:
+            ### Easy one-line install
 
             ```
             curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install.sh | bash
             ```
 
-            Or download `ReviewBar-${{ steps.version.outputs.version }}.zip` below,
-            unzip it, and drag **ReviewBar.app** to your Applications folder.
+            Installs to `/Applications` and starts it. Needs no root, and skips
+            the macOS quarantine warning entirely. Run it again to update.
 
-            ReviewBar is a menu-bar app — no Dock icon, no main window. Look for
-            its status item in the menu bar. It needs [Anki](https://apps.ankiweb.net)
-            running with the [AnkiConnect add-on](https://ankiweb.net/shared/info/2055492159).
+            ### Manual install
 
-            ${{ steps.notary.outputs.configured == 'true' && '' || '### If macOS says it "cannot be opened"
+            Download `ReviewBar-${{ steps.version.outputs.version }}.zip` below,
+            unzip it, and drag **ReviewBar.app** to your Applications folder.${{ steps.notary.outputs.configured != 'true' && ' Going that route, macOS will say ReviewBar "cannot be opened because Apple cannot check it for malicious software". This happens because this project doesn''t have notarization, which requires a paid Developer Program membership. To open it anyway: dismiss the warning, then in **System Settings >> Privacy & Security** click **Open Anyway** next to the message about ReviewBar. That''s a one-time step.' || '' }}
 
-            Expected: notarizing an app requires a paid Apple Developer membership, which this project does not have. The build is ad-hoc signed and produced in the open by the workflow in this repo.
-
-            Try to open ReviewBar, dismiss the warning, then go to **System Settings → Privacy & Security** and click **Open Anyway**. It is a one-time step. (Control-click → Open no longer works on macOS 15.) The install command above skips this entirely.' }}
+            Look for ReviewBar's icon in the menu bar after launching. It needs
+            [Anki](https://apps.ankiweb.net) running with the
+            [AnkiConnect add-on](https://ankiweb.net/shared/info/2055492159).
