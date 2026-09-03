@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build and test
+    # ReviewBarKit tests use MockAnkiConnectClient, so no Anki is needed.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      # The macos-15 runner's default Xcode is a Swift 6 toolchain; pinning a
+      # specific /Applications/Xcode_16.x.app path breaks when the image rolls.
+      - name: Show toolchain
+        run: swift --version && xcodebuild -version
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test
+
+  bundle:
+    name: Bundle .app
+    # Proves project.yml still generates a buildable app target — the SwiftPM
+    # build above does not exercise XcodeGen, Info.plist, or the entitlements.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      # The macos-15 runner's default Xcode is a Swift 6 toolchain; pinning a
+      # specific /Applications/Xcode_16.x.app path breaks when the image rolls.
+      - name: Show toolchain
+        run: swift --version && xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Package (ad-hoc signed)
+        run: scripts/package-release.sh 0.0.0-ci
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ReviewBar-ci-build
+          path: dist/*.zip
+          retention-days: 7

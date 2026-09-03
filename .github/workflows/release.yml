@@ -1,0 +1,120 @@
+name: Release
+
+# Tag a commit to publish a release:
+#
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# The build signs and notarizes when the Developer ID secrets below are present,
+# and falls back to an ad-hoc signature when they are not — so releases work
+# before a Developer ID exists, and upgrade themselves once it does. See
+# docs/RELEASING.md.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (e.g. 0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # package-release.sh derives the build number from history
+
+      # The macos-15 runner's default Xcode is a Swift 6 toolchain; pinning a
+      # specific /Applications/Xcode_16.x.app path breaks when the image rolls.
+      - name: Show toolchain
+        run: swift --version && xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Import Developer ID certificate
+        id: signing
+        env:
+          CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$CERTIFICATE_P12" ]; then
+            echo "No signing certificate configured — building ad-hoc signed."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # A throwaway keychain, unlocked only for this job.
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo -n "$CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+            -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          # Lets codesign use the key without an interactive prompt.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+          rm -f "$RUNNER_TEMP/cert.p12"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Write notarization key
+        id: notary
+        env:
+          NOTARY_KEY: ${{ secrets.NOTARY_KEY }}
+        run: |
+          if [ -z "$NOTARY_KEY" ]; then
+            echo "No notarization key configured — skipping notarization."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo -n "$NOTARY_KEY" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build, sign and notarize
+        env:
+          MACOS_SIGN_IDENTITY: ${{ steps.signing.outputs.signed == 'true' && secrets.MACOS_SIGN_IDENTITY || '-' }}
+          NOTARY_KEY_PATH: ${{ steps.notary.outputs.configured == 'true' && format('{0}/notary.p8', runner.temp) || '' }}
+          NOTARY_KEY_ID: ${{ steps.notary.outputs.configured == 'true' && secrets.NOTARY_KEY_ID || '' }}
+          NOTARY_ISSUER_ID: ${{ steps.notary.outputs.configured == 'true' && secrets.NOTARY_ISSUER_ID || '' }}
+        run: scripts/package-release.sh "${{ steps.version.outputs.version }}"
+
+      - name: Clean up secrets from the runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/notary.p8" "$RUNNER_TEMP/cert.p12"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ReviewBar ${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
+          files: dist/*.zip
+          generate_release_notes: true
+          draft: false
+          # An unnotarized build needs the Gatekeeper workaround spelled out.
+          body: |
+            ### Install
+
+            1. Download `ReviewBar-${{ steps.version.outputs.version }}.zip` below and unzip it.
+            2. Drag **ReviewBar.app** to your Applications folder.
+            3. Make sure [Anki](https://apps.ankiweb.net) is running with the
+               [AnkiConnect add-on](https://ankiweb.net/shared/info/2055492159) installed.
+
+            ReviewBar is a menu-bar app — it has no Dock icon and no main window.
+            Look for its status item in the menu bar.
+
+            ${{ steps.notary.outputs.configured == 'true' && '' || '> **Note:** this build is not notarized yet, so macOS will refuse to open it on the first try. Right-click the app and choose **Open**, or run `xattr -dr com.apple.quarantine /Applications/ReviewBar.app`.' }}

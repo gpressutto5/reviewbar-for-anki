@@ -1,0 +1,72 @@
+# XcodeGen spec — run `xcodegen generate` (requires Xcode) to produce
+# ReviewBar.xcodeproj for signing/notarization. `swift build` works without it.
+#
+# Mirrors Package.swift: ReviewBarKit is a real module the app imports, so it
+# must be its own target here too — compiling both source trees into the app
+# breaks `import ReviewBarKit`.
+name: ReviewBar
+options:
+  bundleIdPrefix: com.reviewbar
+  deploymentTarget:
+    macOS: "15.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    # Release builds override these on the xcodebuild command line so the tag
+    # name ends up in the bundle (see scripts/package-release.sh). The Info.plist
+    # references them as build variables, so they must have defaults here.
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Xcode otherwise injects com.apple.security.get-task-allow whenever the
+    # signing identity is ad-hoc or a development cert — in Release too, not
+    # just Debug — and notarization rejects that entitlement outright. The app
+    # needs no entitlements at all (no sandbox; outbound localhost is
+    # unrestricted without one), so injecting none is correct.
+    CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+targets:
+  # Static, not a framework: hardened runtime turns on library validation, which
+  # requires an embedded framework to share the app's Team ID — ad-hoc signed dev
+  # builds have none, so dyld refuses to load it. Linking statically removes the
+  # runtime load entirely (and matches how SwiftPM builds it).
+  ReviewBarKit:
+    type: library.static
+    platform: macOS
+    sources:
+      - Sources/ReviewBarKit
+  ReviewBar:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/ReviewBar
+    dependencies:
+      - target: ReviewBarKit
+    info:
+      path: Support/Info.plist
+      properties:
+        CFBundleName: ReviewBar
+        CFBundleDisplayName: ReviewBar
+        # Menu-bar-only: no Dock icon, no main window.
+        LSUIElement: true
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSHumanReadableCopyright: "Copyright © 2026 Guilherme Pressutto. MIT licensed."
+    # No app sandbox, deliberately: it cannot read Anki's collection.media
+    # (~/Library/Application Support/Anki2/…), so every media request fails and
+    # script-loading note types render an error card. Direct distribution
+    # (Developer ID + notarization) doesn't require the sandbox; a Mac App Store
+    # build would, and would need the retrieveMediaFile base64 fallback first.
+    #
+    # Hardened runtime IS required for notarization, and — unlike the sandbox —
+    # doesn't restrict reading the user's files or outbound localhost traffic.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.reviewbar.app
+        ENABLE_HARDENED_RUNTIME: true
+  ReviewBarKitTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/ReviewBarKitTests]
+    # `@testable import ReviewBarKit` — the tests exercise the library, not the app.
+    dependencies:
+      - target: ReviewBarKit
