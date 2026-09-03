@@ -74,6 +74,11 @@ require an installed, Launch-Services-registered app, which is what
 be Release, since Debug carries the `get-task-allow` entitlement that
 notarization rejects.
 
+The app icon is a placeholder. To replace it, drop any `.icns` at
+`Resources/AppIcon.icns` — nothing else references the artwork. The current one
+is drawn by `scripts/make-placeholder-icon.swift`, so it can be tweaked and
+regenerated with `swift scripts/make-placeholder-icon.swift`.
+
 Reminders act on hour timescales, so environment overrides make them observable:
 
 ```sh
@@ -105,8 +110,7 @@ responding. The workaround is
 Issues and pull requests are welcome. Start with
 [`CLAUDE.md`](CLAUDE.md) — despite the name it is the architecture guide, and it
 documents the invariants that are easy to break (the GUI-driven review flow, the
-single clock, the ease-vs-position rating buttons). `docs/implementation-plan.md`
-carries the design history behind those choices.
+single clock, the ease-vs-position rating buttons).
 
 Please run `make test` before opening a pull request; CI runs the same suite plus
 a bundle build on every push.
@@ -114,8 +118,6 @@ a bundle build on every push.
 ## Docs
 
 - [`CLAUDE.md`](CLAUDE.md) — architecture and the invariants worth knowing
-- [`docs/implementation-plan.md`](docs/implementation-plan.md) — design decisions
-  and their history
 - [`docs/ankiconnect-queue-findings.md`](docs/ankiconnect-queue-findings.md) —
   why the app drives Anki's real reviewer instead of building its own queue
 - [`docs/RELEASING.md`](docs/RELEASING.md) — how releases are built, signed and

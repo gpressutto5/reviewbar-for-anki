@@ -39,6 +39,10 @@ targets:
     platform: macOS
     sources:
       - Sources/ReviewBar
+      # Placeholder app icon. Replace Resources/AppIcon.icns with any .icns to
+      # rebrand — nothing else references the artwork. See
+      # scripts/make-placeholder-icon.swift for how the current one is drawn.
+      - Resources
     dependencies:
       - target: ReviewBarKit
     info:
@@ -48,6 +52,7 @@ targets:
         CFBundleDisplayName: ReviewBar
         # Menu-bar-only: no Dock icon, no main window.
         LSUIElement: true
+        CFBundleIconFile: AppIcon
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSHumanReadableCopyright: "Copyright © 2026 Guilherme Pressutto. MIT licensed."

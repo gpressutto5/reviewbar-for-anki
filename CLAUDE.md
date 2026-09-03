@@ -63,9 +63,10 @@ Two SwiftPM targets, split so all logic is testable without Anki or a UI:
     virtual one at top-center on external displays. Rebuilt on screen changes.
   - `ReviewPanelView`, `PanelTheme` (design tokens), `CardWebView` + `MediaSchemeHandler`.
 
-`docs/ankiconnect-queue-findings.md` and `docs/implementation-plan.md` carry the
-research behind these choices and the MVP step list/status — read them before
-changing the review flow or AnkiConnect usage.
+`docs/ankiconnect-queue-findings.md` carries the research behind these choices —
+read it before changing the review flow or AnkiConnect usage. `docs/implementation-plan.md`
+(a private working doc, not published in the repo) holds the MVP step list and
+the design history behind each decision.
 
 ## Invariants that are easy to break
 
@@ -151,7 +152,7 @@ including reviews done in Anki itself); `getLatestReviewID` is per-deck and
 excludes subdecks, so it is useless for a global last-review time. The due count
 is only a gate, and that gate ignores `learn` — otherwise an "Again" leaves a
 learning card pending and you are never "caught up". See "Step 11 design" in
-`docs/implementation-plan.md`.
+`docs/implementation-plan.md` (private working doc).
 
 **One clock, and coarse polling.** `AppState.tick()` on the `MenuBarExtra` label's
 `.task` is the app's only timer — screen-lock and wake observers feed it rather

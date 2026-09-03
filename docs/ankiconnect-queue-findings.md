@@ -131,7 +131,7 @@ Ran the full GUI flow against a live Anki using a throwaway deck
 
 Probed with `apiReflect` and called against the live collection. Relevant to
 step 11, which nudges on **inactivity** rather than backlog (see
-`implementation-plan.md`).
+`implementation-plan.md`, a private working doc).
 
 - **`getNumCardsReviewedToday`** — takes no params (passing `deck` errors), one
   cheap call, returns an `Int`. **This is the heartbeat to use**: poll it on the
