@@ -40,6 +40,8 @@ menu bar after launching.
   while and something is waiting, escalating to a notification only when the
   notch can't be seen.
 - **Sequential decks** — "all decks" walks your top-level decks in order.
+- **Update checks** — ReviewBar checks GitHub once a day and offers the new
+  version in its menu. Turn it off in *Settings → General*.
 
 ## Requirements
 

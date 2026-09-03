@@ -23,6 +23,10 @@ final class AppState {
     /// window before `ReviewSession` itself reports `.entering`.
     private(set) var isStartingReview = false
     let session: ReviewSession
+    /// Checks GitHub for a newer release. Driven by `tick()` like everything
+    /// else with a schedule; see `UpdateChecker` for why the app can't install
+    /// the update itself.
+    let updateChecker: UpdateChecker
     /// Anki's collection.media path, fetched when a review starts. Nil means
     /// media requests 404 but the card text still renders.
     private(set) var mediaDir: String?
@@ -127,7 +131,13 @@ final class AppState {
     /// the environment themselves.
     @ObservationIgnored var openSettingsAction: (() -> Void)?
 
+    /// The repository releases are published to. Injected nowhere: an update
+    /// check pointed at a fork would offer the wrong build.
+    private static let releaseOwner = "gpressutto5"
+    private static let releaseRepository = "reviewbar-for-anki"
+
     init(client: (any AnkiConnectClient)? = nil,
+         feed: (any ReleaseFeed)? = nil,
          defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let endpointString = defaults.string(forKey: Self.endpointKey)
@@ -144,6 +154,10 @@ final class AppState {
             self.httpClient = http
         }
         self.session = ReviewSession(client: self.client)
+        self.updateChecker = UpdateChecker(
+            feed: feed ?? GitHubReleaseFeed(owner: Self.releaseOwner,
+                                            repository: Self.releaseRepository),
+            defaults: defaults)
         self.reviewDeckScope = Set(defaults.stringArray(forKey: Self.deckScopeKey) ?? [])
         self.reviewShortcuts = Self.loadReviewShortcuts(from: defaults)
         self.sessionSettings = Self.loadSessionSettings(from: defaults)
@@ -165,6 +179,8 @@ final class AppState {
             await refresh()
         }
         await evaluateReminder(now: now)
+        // Cheap and self-limiting: does nothing until a day has passed.
+        await updateChecker.checkIfDue(now: now)
     }
 
     /// One-time setup once the app is running. Called from the app's `.task`.
@@ -614,6 +630,32 @@ final class AppState {
             connection = .from(error)
             dueCount = nil
         }
+    }
+
+    // MARK: Updates
+
+    /// Open the release page for the update on offer. ReviewBar can't install
+    /// it, so the page — with its install steps — is where the user goes.
+    func openLatestRelease() {
+        guard let release = updateChecker.status.availableRelease else { return }
+        NSWorkspace.shared.open(release.url)
+    }
+
+    /// "Check for Updates…": forced, so it answers even when automatic checks
+    /// are off or the offered version was skipped.
+    func checkForUpdates() async {
+        await updateChecker.check(force: true)
+    }
+
+    func skipOfferedUpdate() {
+        guard let release = updateChecker.status.availableRelease else { return }
+        updateChecker.skip(release.version)
+    }
+
+    /// Menu line for an update on offer, or nil when there is nothing to say.
+    var updateSummary: String? {
+        guard let release = updateChecker.status.availableRelease else { return nil }
+        return "Update available: \(release.version)"
     }
 
     /// The reminder heartbeat. The delta logic lives in

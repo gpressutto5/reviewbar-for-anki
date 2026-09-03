@@ -16,6 +16,21 @@ Versions come from the tag: `v0.1.0` becomes `CFBundleShortVersionString` `0.1.0
 and the commit count becomes `CFBundleVersion`. Nothing in the repo hard-codes a
 version, so there is no file to bump.
 
+## Tag format matters
+
+The in-app update check compares the running build's
+`CFBundleShortVersionString` against the tag on GitHub's *latest release*, so:
+
+- **Tag as `vX.Y.Z`.** `AppVersion` strips the leading `v`, so `v0.2.0` and the
+  bundle's `0.2.0` compare equal. A tag that doesn't parse as numbers is
+  ignored, and users are never told about the release.
+- **Versions must only go up.** Comparison is numeric per component, so
+  `v0.10.0` correctly follows `v0.9.0`.
+- **Prereleases are safe.** Mark a release as a prerelease on GitHub and it is
+  excluded from `/releases/latest`, so it won't be offered to everyone. A
+  `-beta` suffix in the tag also sorts below the final release of the same
+  numbers.
+
 ## Signing tiers
 
 The workflow is deliberately tolerant of missing credentials, so releases work

@@ -284,6 +284,20 @@ refresh is answering the *previous* deck scope or endpoint and has already
 stamped `lastRefreshAt`, so dropping the new one leaves the badge stale for a
 full 300 s.
 
+**The updater tells, it cannot install — and that is a signing constraint, not
+a preference.** Sparkle ships only as a framework, and library validation (which
+hardened runtime turns on and notarization requires) refuses to load a framework
+that doesn't share the app's Team ID — the same reason ReviewBarKit must stay
+`library.static`. So `UpdateChecker` reads GitHub's `/releases/latest` and opens
+the release page. Use `/releases/latest`, never `/releases`: GitHub already
+excludes drafts and prereleases from it, so a tagged beta never prompts
+everyone. `AppVersion` compares components numerically because `0.10.0` sorts
+below `0.9.0` as a string. A build with no `CFBundleShortVersionString` (how
+`swift run` launches us) is `.unsupported`, not version zero — a dev build must
+never announce that it is out of date. The check is driven by `AppState.tick()`
+like everything else with a schedule, and a *failed* check deliberately doesn't
+stamp `lastCheckedAt`: a blip would otherwise buy a full day of silence.
+
 **`CardWebView` has one native bridge, deliberately**: the one-way `cardHeight`
 message used to size the panel. Don't add more.
 

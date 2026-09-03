@@ -13,7 +13,7 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            GeneralSettingsTab()
+            GeneralSettingsTab(state: state)
                 .tabItem { Label("General", systemImage: "gearshape") }
             RemindersSettingsTab(state: state)
                 .tabItem { Label("Reminders", systemImage: "bell") }
@@ -45,6 +45,7 @@ private struct Caption: View {
 /// re-reads on appear, because System Settings can flip the login item while
 /// the app is running.
 private struct GeneralSettingsTab: View {
+    let state: AppState
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var needsApproval = LaunchAtLogin.needsApproval
 
@@ -73,6 +74,16 @@ private struct GeneralSettingsTab: View {
                 }
                 .gridColumnAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Divider().gridCellUnsizedAxes(.horizontal)
+
+            GridRow {
+                Text("Updates:")
+                    .gridColumnAlignment(.trailing)
+                UpdatesSection(state: state)
+                    .gridColumnAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             Divider().gridCellUnsizedAxes(.horizontal)
@@ -112,6 +123,75 @@ private struct GeneralSettingsTab: View {
     private func syncFromSystem() {
         launchAtLogin = LaunchAtLogin.isEnabled
         needsApproval = LaunchAtLogin.needsApproval
+    }
+}
+
+/// Update state and the manual check. ReviewBar can't install an update
+/// itself (see `UpdateChecker`), so the button opens the release page; the
+/// status line is what makes an automatic check visible at all.
+private struct UpdatesSection: View {
+    let state: AppState
+    @State private var isChecking = false
+
+    private var checker: UpdateChecker { state.updateChecker }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle("Check for updates automatically", isOn: automaticBinding)
+                .disabled(checker.currentVersion == nil)
+
+            HStack(spacing: 8) {
+                Button("Check Now") {
+                    Task {
+                        isChecking = true
+                        await state.checkForUpdates()
+                        isChecking = false
+                    }
+                }
+                .controlSize(.small)
+                .disabled(isChecking || checker.currentVersion == nil)
+
+                if isChecking {
+                    ProgressView().controlSize(.small)
+                }
+
+                if case .available = checker.status {
+                    Button("Download…") { state.openLatestRelease() }
+                        .controlSize(.small)
+                }
+            }
+
+            Caption(statusCaption)
+        }
+    }
+
+    private var automaticBinding: Binding<Bool> {
+        Binding(get: { checker.automaticallyChecks },
+                set: { checker.automaticallyChecks = $0 })
+    }
+
+    private var statusCaption: String {
+        guard let current = checker.currentVersion else {
+            return "Only available in an installed app; this build is running from the command line."
+        }
+        switch checker.status {
+        case .available(let release):
+            return "Version \(release.version) is available. You have \(current)."
+        case .checking:
+            return "Checking…"
+        case .upToDate:
+            return "ReviewBar \(current) is up to date."
+        case .failed(.noRelease):
+            // Not an error: the repository simply has no published release yet.
+            return "No releases have been published yet."
+        case .failed(.rateLimited):
+            // Retrying sooner cannot help, so say so rather than "try again".
+            return "GitHub is rate-limiting update checks right now. It will try again later."
+        case .failed:
+            return "Couldn't reach GitHub to check for updates."
+        case .idle, .unsupported:
+            return "ReviewBar \(current)."
+        }
     }
 }
 

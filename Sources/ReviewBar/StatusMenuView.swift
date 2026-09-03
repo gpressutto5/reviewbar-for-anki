@@ -53,6 +53,18 @@ struct StatusMenuView: View {
 
         Divider()
 
+        // Only shown when there is something to act on — a permanent "you're
+        // up to date" line would be clutter in a menu opened for the due count.
+        if let updateSummary = state.updateSummary {
+            Button(updateSummary) {
+                state.openLatestRelease()
+            }
+            Button("Skip This Version") {
+                state.skipOfferedUpdate()
+            }
+            Divider()
+        }
+
         Button("Settings…") {
             state.openSettingsWindow()
         }
