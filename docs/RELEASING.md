@@ -31,25 +31,44 @@ The in-app update check compares the running build's
   `-beta` suffix in the tag also sorts below the final release of the same
   numbers.
 
-## Signing tiers
+## Signing, and why releases are not notarized
 
-The workflow is deliberately tolerant of missing credentials, so releases work
-today and improve once you have a Developer ID:
+Notarization — the thing that makes macOS open an app without complaint —
+requires a **paid Apple Developer Program membership** ($99/year). This project
+deliberately doesn't have one, so releases are **ad-hoc signed**: a valid
+signature structure, but not one Apple vouches for.
+
+What that means in practice:
+
+- Users get a one-time warning on first launch, cleared through *System
+  Settings → Privacy & Security → Open Anyway*, or avoided entirely by
+  installing with `scripts/install.sh`, which never lets the quarantine flag
+  stick. The README and the generated release notes both spell this out.
+- Ad-hoc is meaningfully better than unsigned. macOS 15.1 hard-blocks
+  applications carrying *no* signature at all; an ad-hoc signature keeps the
+  normal "Open Anyway" path available.
+- **Homebrew is not an option.** Homebrew ended support for casks that fail
+  Gatekeeper checks on 1 September 2026 and removed the `--no-quarantine`
+  flag, so ReviewBar cannot ship through the official tap while unnotarized.
+- Each build has a different ad-hoc signature, so macOS may treat an updated
+  copy as a new app and re-ask for notification permission after an update.
+
+The pipeline still supports notarization, and turns it on by itself the moment
+the secrets below exist — nothing in the workflow needs editing to switch. If
+that ever happens, the release notes drop the warning section automatically.
 
 | Secrets present | Result | What users see |
 | --- | --- | --- |
-| none | ad-hoc signature | "ReviewBar cannot be opened" — needs a right-click → Open |
-| certificate only | Developer ID signature | Still warns, because the ticket is missing |
-| certificate + notary key | signed, notarized, stapled | Opens normally |
-
-Until the third row is reached, the release notes automatically include the
-`xattr -dr com.apple.quarantine` workaround.
+| none (today) | ad-hoc signature | one-time "Open Anyway", or no warning via the install script |
+| certificate only | Developer ID signature | still warns, because the ticket is missing |
+| certificate + notary key | signed, notarized, stapled | opens normally |
 
 ## Getting a Developer ID certificate
 
-This needs a paid **Apple Developer Program** membership ($99/year). A free
-Apple ID cannot issue Developer ID certificates — that is an Apple restriction,
-not a limitation of this setup.
+Only relevant if the project ever takes on the $99/year membership; releases
+work without it. A free Apple ID cannot issue Developer ID certificates, and
+there is no unpaid route to notarization — that is an Apple restriction, not a
+limitation of this setup.
 
 1. **Enroll** at [developer.apple.com/programs](https://developer.apple.com/programs/).
    Enrollment as an individual usually clears within a day or two.

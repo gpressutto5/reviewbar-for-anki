@@ -13,7 +13,7 @@ in Anki.
 [![Latest release](https://img.shields.io/github/v/release/gpressutto5/reviewbar-for-anki?label=download)](https://github.com/gpressutto5/reviewbar-for-anki/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## Download
+## Install
 
 **[⬇ Download the latest release](https://github.com/gpressutto5/reviewbar-for-anki/releases/latest)**
 
@@ -21,9 +21,46 @@ Unzip it and drag **ReviewBar.app** to your Applications folder. ReviewBar is a
 menu-bar app — no Dock icon, no main window — so look for its status item in the
 menu bar after launching.
 
-> **First launch:** builds are not notarized yet, so macOS will refuse to open
-> the app on the first try. Right-click it and choose **Open**, or run
-> `xattr -dr com.apple.quarantine /Applications/ReviewBar.app`.
+### The first-launch warning
+
+macOS will say ReviewBar "cannot be opened because Apple cannot check it for
+malicious software." That is expected, and it is not a claim that anything is
+wrong with the app: Apple's notarization requires a paid Developer Program
+membership ($99/year), which this project doesn't have. The build is ad-hoc
+signed and built in the open — you can read the
+[workflow that produced it](.github/workflows/release.yml).
+
+To open it the first time:
+
+1. Try to open ReviewBar, and dismiss the warning.
+2. Open **System Settings → Privacy & Security**, scroll to the Security
+   section, and click **Open Anyway** next to the message about ReviewBar.
+3. Confirm. macOS remembers the decision, so this is a one-time step.
+
+> On macOS 15, Control-clicking the app and choosing *Open* no longer works —
+> Apple removed that shortcut in Sequoia. The System Settings route above is the
+> supported one.
+
+### Or install without the warning
+
+macOS only quarantines apps it sees arrive from a browser, so installing from
+the command line skips the whole dance:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gpressutto5/reviewbar-for-anki/main/scripts/install.sh | bash
+```
+
+That downloads the latest release, installs it to `/Applications`, and starts
+it. It needs no root, touches nothing but `ReviewBar.app`, and is
+[a readable 80-line script](scripts/install.sh) — worth skimming before you run
+it, as with anything piped into a shell. To do the same by hand after dragging
+the app across:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/ReviewBar.app
+```
+
+Running the installer again updates an existing install.
 
 ## What it does
 
