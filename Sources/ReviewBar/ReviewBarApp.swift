@@ -38,8 +38,16 @@ private struct MenuBarLabel: View {
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
-        Text(state.menuBarTitle)
-            .task {
+        // Icon + count, the way system items show status. Both stay a
+        // template image: MenuBarExtra flattens the label to the menu bar's
+        // foreground colour, so tinting or a pill background would be lost.
+        Label {
+            Text(state.menuBarTitle).monospacedDigit()
+        } icon: {
+            Image(nsImage: MenuBarGlyph.image)
+        }
+        .labelStyle(.titleAndIcon)
+        .task {
                 // The label view lives as long as the app, so the app's
                 // single clock hangs off it. Each tick re-plans reminders
                 // and refreshes from Anki only when due — the sleep

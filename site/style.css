@@ -118,12 +118,14 @@ h1 { font-size: 68px; line-height: 1.04; font-weight: 600; letter-spacing: -0.03
 .menubar-right { gap: calc(var(--u) * 18); }
 .menubar-left svg { width: calc(var(--u) * 14); height: calc(var(--u) * 16); }
 .menubar-app { font-weight: 600; }
+/* Mirrors the app's real status item (Sources/ReviewBar/MenuBarGlyph.swift):
+   a 16pt template glyph plus the bare count, no pill — the menu bar only
+   highlights an item while its menu is open. */
 .status-item {
-  display: inline-flex; align-items: center; gap: calc(var(--u) * 6);
-  padding: calc(var(--u) * 2) calc(var(--u) * 8); border-radius: calc(var(--u) * 6);
-  background: rgba(255, 255, 255, 0.14); font-size: calc(var(--u) * 12); font-weight: 500;
+  display: inline-flex; align-items: center; gap: calc(var(--u) * 5);
+  font-size: calc(var(--u) * 13); font-variant-numeric: tabular-nums;
 }
-.status-item img { width: calc(var(--u) * 14); height: calc(var(--u) * 14); border-radius: calc(var(--u) * 3); }
+.status-glyph { width: calc(var(--u) * 16); height: calc(var(--u) * 16); }
 
 .bg-window {
   position: absolute; border-radius: calc(var(--u) * 12);

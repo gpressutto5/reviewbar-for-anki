@@ -467,10 +467,12 @@ final class AppState {
 
     // MARK: Status
 
+    /// Count beside the menu bar glyph. The glyph alone means "caught up";
+    /// text appears only when there is something to count or report.
     var menuBarTitle: String {
         switch connection {
         case .connected where dueCount ?? 0 > 0: "\(dueCount!)"
-        case .connected: "✓"
+        case .connected: ""
         default: "–"
         }
     }
