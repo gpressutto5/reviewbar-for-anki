@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ReviewBar — Anki reviews from your Mac's menu bar</title>
+  <meta name="description" content="ReviewBar is a free macOS menu-bar companion for Anki. See what's due, click the notch, review a handful of cards and get back to work. Anki keeps the schedule.">
+  <meta name="theme-color" content="#0b0b0d">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="appicon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="ReviewBar — Your Anki reviews, one notch away">
+  <meta property="og:description" content="A free macOS menu-bar companion for Anki. Review due cards in small batches from a panel that grows out of the notch.">
+  <meta property="og:image" content="og-image.png">
+  <meta name="twitter:card" content="summary">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="nav">
+  <a class="brand" href="#top" aria-label="ReviewBar home">
+    <img src="appicon.png" alt="" width="36" height="36">
+    <span class="brand-name">ReviewBar</span>
+    <span class="brand-sub">for Anki</span>
+  </a>
+  <nav class="nav-links" aria-label="Sections">
+    <a href="#how">How it works</a>
+    <a href="#features">Features</a>
+    <a href="#install">Install</a>
+    <a href="https://github.com/gpressutto5/reviewbar-for-anki" class="nav-github">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>
+      GitHub
+    </a>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <p class="pill enter enter-1"><span class="dot" aria-hidden="true"></span>Free and open source · macOS 15+</p>
+    <h1 class="enter enter-2">Your Anki reviews,<br>one notch away.</h1>
+    <p class="lede enter enter-3">ReviewBar sits in your Mac's menu bar and shows how many cards are due. Click the notch, review a handful, and get back to work. Anki still does all the scheduling.</p>
+    <div class="cta-row enter enter-4">
+      <a class="btn btn-primary" href="https://github.com/gpressutto5/reviewbar-for-anki/releases/latest">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>
+        Download for macOS
+      </a>
+      <a class="btn btn-secondary" href="https://github.com/gpressutto5/reviewbar-for-anki">View source</a>
+    </div>
+    <p class="fineprint enter enter-5">Universal build for Apple silicon and Intel · Needs Anki Desktop with the AnkiConnect add-on</p>
+  </section>
+
+  <section class="display-wrap enter enter-5" aria-label="ReviewBar's review panel opening from the MacBook notch">
+    <div class="display" id="display">
+      <div class="menubar" aria-hidden="true">
+        <div class="menubar-left">
+          <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor"><path d="M11.6 8.5c0-1.9 1.6-2.8 1.6-2.8-.9-1.3-2.2-1.5-2.7-1.5-1.2-.1-2.3.7-2.9.7-.6 0-1.5-.7-2.5-.7C3.1 4.2 1 5.9 1 9.2c0 2.1.8 4.3 1.8 5.7.8 1.1 1.5 1.1 2.4 1.1.9 0 1.2-.5 2.4-.5s1.5.5 2.5.5c1 0 1.6-.9 2.3-1.9.5-.8.8-1.7.8-1.7s-1.6-.7-1.6-3.9zM9.6 2.9c.5-.7.9-1.6.8-2.6-.8 0-1.8.6-2.4 1.3-.5.6-1 1.6-.8 2.5.9.1 1.8-.5 2.4-1.2z"/></svg>
+          <span class="menubar-app">Finder</span><span>File</span><span>Edit</span><span>View</span><span>Go</span><span>Window</span><span>Help</span>
+        </div>
+        <div class="menubar-right">
+          <span class="status-item"><img src="appicon.png" alt="" width="14" height="14"><span class="mono">12 due</span></span>
+          <span>Mon 9:41 AM</span>
+        </div>
+      </div>
+
+      <div class="panel" aria-hidden="true">
+        <span class="ear ear-left"></span>
+        <span class="ear ear-right"></span>
+        <div class="panel-clip">
+          <span class="peek-count">12</span>
+          <div class="panel-content">
+            <div class="panel-header">
+              <span class="deck">Japanese::Core 2k</span>
+              <span class="close"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 2l6 6M8 2l-6 6"/></svg></span>
+            </div>
+            <div class="tiles">
+              <span class="tile"><b class="again">Again</b><small>&lt;1m</small></span>
+              <span class="tile"><b class="hard">Hard</b><small>30m</small></span>
+              <span class="tile"><b class="good">Good</b><small>1d</small></span>
+              <span class="tile"><b class="easy">Easy</b><small>2d</small></span>
+            </div>
+            <div class="card">
+              <div class="card-front">食べる</div>
+              <div class="card-rule"></div>
+              <div class="card-back">to eat</div>
+              <div class="card-reading mono">taberu</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-window bg-window-left" data-depth="1" aria-hidden="true"></div>
+      <div class="bg-window bg-window-right" data-depth="0.75" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <section class="section reveal" id="how">
+    <div class="section-head">
+      <p class="eyebrow">How it works</p>
+      <h2>Anki keeps the schedule. ReviewBar keeps it within reach.</h2>
+      <p class="section-lede">ReviewBar drives Anki's own reviewer through the AnkiConnect add-on, on your machine. Every answer is recorded exactly as if you had done it in Anki.</p>
+    </div>
+    <ol class="steps">
+      <li class="step">
+        <span class="step-num mono">01</span>
+        <h3>See what's due</h3>
+        <p>Open Anki as usual. ReviewBar reads the due count for the decks you chose and shows it in the menu bar.</p>
+      </li>
+      <li class="step">
+        <span class="step-num mono">02</span>
+        <h3>Click the notch</h3>
+        <p>A panel grows out of the notch with your next card, rendered with your note type's own CSS, images and audio. Space reveals the answer.</p>
+      </li>
+      <li class="step">
+        <span class="step-num mono">03</span>
+        <h3>Rate and move on</h3>
+        <p>Press 1 to 4. Interval previews come from Anki's scheduler. After a small batch, ReviewBar offers to stop, and Escape puts it away.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="section reveal" id="features">
+    <div class="section-head">
+      <p class="eyebrow">Built for the whole day</p>
+      <h2>Small batches instead of one big backlog.</h2>
+    </div>
+    <ul class="features">
+      <li class="feature">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="3"/><path d="M3 9h18"/><path d="M8 21h8"/></svg>
+        <h3>Real card rendering</h3>
+        <p>Your note-type CSS and scripts, images and audio, in the same DOM Anki's reviewer uses. Themes behave the way they do in Anki.</p>
+      </li>
+      <li class="feature">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <h3>Soft sessions</h3>
+        <p>After a batch of cards, ReviewBar offers to stop rather than marching you through everything. Continue if you're on a roll.</p>
+      </li>
+      <li class="feature">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
+        <h3>Quiet reminders</h3>
+        <p>Haven't reviewed in a while and something is waiting? The notch peeks. A notification only when the notch can't be seen.</p>
+      </li>
+      <li class="feature">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>
+        <h3>Keyboard first</h3>
+        <p>Space to reveal, 1 to 4 to rate, Escape to dismiss. Rating buttons carry the interval preview Anki would show.</p>
+      </li>
+      <li class="feature">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h6"/></svg>
+        <h3>Deck scope</h3>
+        <p>Pick the decks that belong in your day. The due count, the reminders and the review all follow the same choice.</p>
+      </li>
+      <li class="feature">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <h3>Stays on your Mac</h3>
+        <p>ReviewBar talks only to AnkiConnect on localhost. No accounts, no telemetry, no other network requests. MIT licensed.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section class="section reveal" id="install">
+    <div class="install">
+      <div class="install-main">
+        <h2>Free. Install in a minute.</h2>
+        <p class="section-lede">Download the latest release and drag ReviewBar to Applications. Look for its icon in the menu bar.</p>
+        <div class="install-cta">
+          <a class="btn btn-primary" href="https://github.com/gpressutto5/reviewbar-for-anki/releases/latest">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>
+            Download for macOS
+          </a>
+          <p class="fineprint">Latest release on GitHub · macOS 15 or later</p>
+        </div>
+        <div class="terminal-block">
+          <p class="eyebrow">Or from the Terminal</p>
+          <pre class="code mono"><code>curl -fsSL https://raw.githubusercontent.com/gpressutto5/reviewbar-for-anki/main/scripts/install.sh | bash</code></pre>
+          <p class="fineprint">Installs to /Applications with no root. Run it again to update. It's <a href="https://github.com/gpressutto5/reviewbar-for-anki/blob/main/scripts/install.sh">an 80-line script</a>; worth a skim, like anything piped into a shell.</p>
+        </div>
+        <div class="coffee">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h11v7a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 4c0 1 1 1 1 2M11 4c0 1 1 1 1 2"/></svg>
+          <p>ReviewBar is free and stays free. If it helps you keep your streak, you can</p>
+          <a class="btn btn-coffee" href="https://buymeacoffee.com/gpressutto5">Buy me a coffee</a>
+        </div>
+      </div>
+      <div class="install-side">
+        <div class="requirements">
+          <p class="eyebrow">You'll need</p>
+          <ul class="checklist">
+            <li>macOS 15 or later, Apple silicon or Intel</li>
+            <li><a href="https://apps.ankiweb.net">Anki Desktop</a>, running</li>
+            <li>The <a href="https://ankiweb.net/shared/info/2055492159">AnkiConnect add-on</a>. In Anki: <span class="nowrap">Tools → Add-ons → Get Add-ons…</span>, paste <span class="mono">2055492159</span>, restart.</li>
+          </ul>
+        </div>
+        <div class="notice">
+          <p class="notice-title">First launch: "Apple cannot check it for malicious software"</p>
+          <p>ReviewBar isn't notarized, which needs a paid Apple developer membership. Dismiss the warning, open System Settings → Privacy &amp; Security, and click Open Anyway next to ReviewBar. One-time step. The install script skips this.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="footer-left">
+    <div class="footer-brand">
+      <img src="appicon.png" alt="" width="24" height="24">
+      <span class="brand-name">ReviewBar</span>
+      <span class="fineprint">MIT © Guilherme Pressutto</span>
+    </div>
+    <p class="fineprint">Anki is a trademark of its respective owners. ReviewBar is an independent companion app and is not affiliated with, endorsed by, or sponsored by Anki or AnkiWeb.</p>
+  </div>
+  <nav class="footer-links" aria-label="Links">
+    <a href="https://github.com/gpressutto5/reviewbar-for-anki">GitHub</a>
+    <a href="https://github.com/gpressutto5/reviewbar-for-anki/releases/latest">Releases</a>
+    <a href="https://github.com/gpressutto5/reviewbar-for-anki/issues">Report an issue</a>
+    <a href="https://buymeacoffee.com/gpressutto5">Buy me a coffee</a>
+  </nav>
+</footer>
+
+<script src="main.js" defer></script>
+</body>
+</html>
