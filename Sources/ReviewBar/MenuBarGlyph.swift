@@ -7,6 +7,7 @@ import AppKit
 /// Drawn rather than shipped as an asset because the SwiftPM executable has
 /// no resource bundle — `swift run` would show a blank label — and a 16 pt
 /// monochrome shape is cheaper to draw than to keep in sync with the .icns.
+@MainActor
 enum MenuBarGlyph {
     /// Menu bar items are 22 pt tall (24 on notch Macs); 16 × 16 matches the
     /// footprint of Apple's own template icons beside it.
