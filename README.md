@@ -43,7 +43,10 @@ Look for ReviewBar's icon in the menu bar after launching.
 - **Real card rendering** — your note-type CSS and JavaScript, images, and audio,
   reproducing Anki's reviewer DOM so themes behave the way they do in Anki.
 - **Rating with interval previews**, taken from Anki's own scheduler, with
-  keyboard shortcuts (space to reveal, `1`–`4` to rate).
+  keyboard shortcuts (space to reveal, `1`–`4` to rate, Escape or a key of
+  your choice to close). The previews can be hidden, the buttons cut down to
+  pass/fail (Again and Good only), and cards can render light, dark, or match
+  the system.
 - **Soft sessions** — after a batch of N cards, ReviewBar offers to stop rather
   than marching you through the whole backlog.
 - **Inactivity reminders** — a quiet notch peek when you haven't reviewed in a

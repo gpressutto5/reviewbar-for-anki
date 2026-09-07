@@ -298,6 +298,30 @@ never announce that it is out of date. The check is driven by `AppState.tick()`
 like everything else with a schedule, and a *failed* check deliberately doesn't
 stamp `lastCheckedAt`: a blip would otherwise buy a full day of silence.
 
+**Card theme is the web view's `NSAppearance`, not a CSS override.** The
+panel pins itself to `darkAqua`, so every card used to render dark. WebKit's
+`prefers-color-scheme` follows the view's effective appearance, so
+`CardWebView` sets `webView.appearance` per `CardAppearance` (nil = inherit
+dark, `.aqua` = light, `NSApp.effectiveAppearance` + KVO = system) and the
+existing night-mode script mirrors it into Anki's body classes. Don't force
+the classes from Swift instead: note-type CSS also uses the media query, and
+the two would disagree. `SystemAppearance` observes `NSApp` for the same
+reason — SwiftUI's `colorScheme` inside the panel is always dark and can't
+be used to pick the card surface colour.
+
+**Pass/fail mode filters by `meaning`, never by ease number.**
+`ReviewDisplaySettings.visibleButtons` keeps the buttons *named* Again and
+Good, so on a three-button card it keeps ease 2 (which is Good there). The
+same filter gates keyboard ratings in `AppState.handleReviewKey`; the panel
+must never show a button the keyboard can't reach or vice versa. Anki's
+scheduler is untouched — the app never tells Anki the card has two buttons.
+
+**The close key resolves before the phase switch in `handleReviewKey`.**
+Escape stays the panel's close button (it is a key equivalent and never
+reaches `normalized(key:)`); the optional `ReviewShortcuts.close` key is an
+addition, checked first so it works in every phase including `.failed`. It
+never shadows the reveal key — a close binding on space is inert and flagged.
+
 **`CardWebView` has one native bridge, deliberately**: the one-way `cardHeight`
 message used to size the panel. Don't add more.
 

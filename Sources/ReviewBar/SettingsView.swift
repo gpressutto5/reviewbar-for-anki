@@ -19,6 +19,8 @@ struct SettingsView: View {
                 .tabItem { Label("Reminders", systemImage: "bell") }
             ReviewSettingsTab(state: state)
                 .tabItem { Label("Review", systemImage: "rectangle.stack") }
+            AppearanceSettingsTab(state: state)
+                .tabItem { Label("Appearance", systemImage: "paintpalette") }
             ShortcutsSettingsTab(state: state)
                 .tabItem { Label("Shortcuts", systemImage: "keyboard") }
         }
@@ -571,6 +573,57 @@ private struct ReviewSettingsTab: View {
     }
 }
 
+// MARK: - Appearance
+
+/// What the card looks like inside the panel. The panel chrome itself is
+/// always the dark slab; only the card document and the rating buttons are
+/// configurable here.
+private struct AppearanceSettingsTab: View {
+    @Bindable var state: AppState
+
+    var body: some View {
+        Grid(alignment: .leadingFirstTextBaseline,
+             horizontalSpacing: 10, verticalSpacing: 12) {
+            GridRow {
+                Text("Card theme:")
+                    .gridColumnAlignment(.trailing)
+                VStack(alignment: .leading, spacing: 6) {
+                    Picker("", selection: $state.reviewDisplay.cardAppearance) {
+                        ForEach(CardAppearance.allCases, id: \.self) { appearance in
+                            Text(appearance.label).tag(appearance)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    Caption("Note types with their own light and dark styling follow this, the same way they follow Anki's night mode.")
+                }
+                .gridColumnAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Divider().gridCellUnsizedAxes(.horizontal)
+
+            GridRow {
+                Text("Rating buttons:")
+                    .gridColumnAlignment(.trailing)
+                VStack(alignment: .leading, spacing: 6) {
+                    Toggle("Show the next review time on each button",
+                           isOn: $state.reviewDisplay.showsIntervals)
+                    Caption("Anki's own previews — 10m, 3d, 2mo — under each button.")
+                    Toggle("Pass/fail: only Again and Good",
+                           isOn: $state.reviewDisplay.passFailOnly)
+                        .padding(.top, 6)
+                    Caption("Hides Hard and Easy and disables their keys, like the “Pass/Fail” add-ons. Anki's scheduling is unchanged.")
+                }
+                .gridColumnAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(20)
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+}
+
 // MARK: - Shortcuts
 
 /// Anki-style reviewer keys. Deliberately narrow: one plain character per
@@ -613,6 +666,37 @@ private struct ShortcutsSettingsTab: View {
                 }
             }
 
+            Divider().gridCellUnsizedAxes(.horizontal)
+
+            GridRow {
+                Text("Close panel:")
+                    .gridColumnAlignment(.trailing)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text("Esc")
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(RoundedRectangle(cornerRadius: 5)
+                                .fill(.quaternary.opacity(0.6)))
+                        Text("or").foregroundStyle(.secondary)
+                        KeyField(key: closeKey)
+                        if state.reviewShortcuts.close == nil {
+                            Text("none").foregroundStyle(.secondary)
+                        } else {
+                            Button("Clear") { state.reviewShortcuts.close = nil }
+                                .controlSize(.small)
+                        }
+                        if state.reviewShortcuts.closeKeyConflicts {
+                            Label("Already used", systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    Caption("Escape always closes the panel. Add a second key here if you'd rather not reach for it.")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             GridRow {
                 Color.clear.frame(height: 0)
                 VStack(alignment: .leading, spacing: 6) {
@@ -633,6 +717,13 @@ private struct ShortcutsSettingsTab: View {
     private func binding(for ease: Ease) -> Binding<String> {
         Binding(get: { state.reviewShortcuts[ease] },
                 set: { state.reviewShortcuts[ease] = $0 })
+    }
+
+    /// The close key as a plain string for `KeyField`: unset reads as empty
+    /// (the field shows "—"), and typing a character sets it.
+    private var closeKey: Binding<String> {
+        Binding(get: { state.reviewShortcuts.close ?? "" },
+                set: { state.reviewShortcuts.close = $0.isEmpty ? nil : $0 })
     }
 }
 

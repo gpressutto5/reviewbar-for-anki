@@ -84,3 +84,41 @@ import Testing
         #expect(try JSONDecoder().decode(ReviewShortcuts.self, from: data) == shortcuts)
     }
 }
+
+@Suite struct CloseShortcutTests {
+    @Test func noCloseKeyByDefault() {
+        let shortcuts = ReviewShortcuts()
+        #expect(shortcuts.close == nil)
+        #expect(shortcuts.closeKeyConflicts == false)
+        #expect(shortcuts.action(forKey: "q", answerShown: false) == nil)
+    }
+
+    @Test func closeKeyFiresInBothPhases() {
+        let shortcuts = ReviewShortcuts(close: "q")
+        #expect(shortcuts.action(forKey: "q", answerShown: false) == .close)
+        #expect(shortcuts.action(forKey: "Q", answerShown: true) == .close)
+        #expect(shortcuts.closeKeyConflicts == false)
+        #expect(shortcuts.conflicts.isEmpty)
+    }
+
+    @Test func closeKeyWinsOverARatingAndIsFlagged() {
+        let shortcuts = ReviewShortcuts(close: "3")
+        #expect(shortcuts.action(forKey: "3", answerShown: true) == .close)
+        #expect(shortcuts.conflicts == [.good])
+        #expect(shortcuts.closeKeyConflicts == false)
+    }
+
+    @Test func closeKeyOnSpaceIsFlaggedAndIgnored() {
+        // Space must keep flipping the card, so the close binding is the one
+        // that gives way here.
+        let shortcuts = ReviewShortcuts(close: " ")
+        #expect(shortcuts.closeKeyConflicts)
+        #expect(shortcuts.action(forKey: " ", answerShown: false) == .showAnswer)
+    }
+
+    @Test func oldBlobsWithoutACloseKeyStillDecode() throws {
+        let data = Data(#"{"again":"1","hard":"2","good":"3","easy":"4","spaceAnswersGood":true}"#.utf8)
+        let shortcuts = try JSONDecoder().decode(ReviewShortcuts.self, from: data)
+        #expect(shortcuts == ReviewShortcuts())
+    }
+}

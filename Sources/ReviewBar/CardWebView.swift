@@ -11,6 +11,11 @@ struct CardWebView: NSViewRepresentable {
     let cardHTML: String
     let css: String
     let mediaDir: String?
+    /// Which appearance the card document renders under. The web view's
+    /// `NSAppearance` is what `prefers-color-scheme` follows inside WebKit,
+    /// so overriding it here is what lets a card be light on the dark panel;
+    /// the injected night-mode script mirrors it into Anki's body classes.
+    var appearance: CardAppearance = .dark
     var onHeightChange: (CGFloat) -> Void = { _ in }
 
     /// Reports the card's content height whenever it changes — including
@@ -54,6 +59,7 @@ struct CardWebView: NSViewRepresentable {
     func updateNSView(_ container: CardWebContainer, context: Context) {
         let coordinator = context.coordinator
         coordinator.onHeightChange = onHeightChange
+        coordinator.apply(appearance, to: container.webView)
         let document = AnkiMedia.documentHTML(cardHTML: cardHTML, css: css)
         guard document != coordinator.loadedDocument else { return }
         let isFirstLoad = coordinator.loadedDocument == nil
@@ -91,9 +97,34 @@ struct CardWebView: NSViewRepresentable {
         var loadedDocument: String?
         var onHeightChange: (CGFloat) -> Void
         weak var container: CardWebContainer?
+        /// Live only under `.system`: the panel forces `darkAqua`, so the web
+        /// view can't inherit the OS appearance and has to be told about
+        /// changes explicitly.
+        private var systemAppearanceObservation: NSKeyValueObservation?
 
         init(onHeightChange: @escaping (CGFloat) -> Void) {
             self.onHeightChange = onHeightChange
+        }
+
+        /// The panel is pinned to `darkAqua` (see `ReviewPanelController`), so
+        /// `.dark` is the inherited default and the other two override it on
+        /// the web view alone — the panel chrome never changes.
+        func apply(_ appearance: CardAppearance, to webView: WKWebView) {
+            switch appearance {
+            case .dark:
+                systemAppearanceObservation = nil
+                webView.appearance = nil
+            case .light:
+                systemAppearanceObservation = nil
+                webView.appearance = NSAppearance(named: .aqua)
+            case .system:
+                webView.appearance = NSApp.effectiveAppearance
+                guard systemAppearanceObservation == nil else { return }
+                systemAppearanceObservation = NSApp.observe(\.effectiveAppearance) {
+                    [weak webView] app, _ in
+                    webView?.appearance = app.effectiveAppearance
+                }
+            }
         }
 
         /// The new document has rendered; give it a frame to paint, then

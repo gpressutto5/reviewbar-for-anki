@@ -83,6 +83,16 @@ final class AppState {
         }
     }
 
+    /// What the panel shows: card theme and whether rating buttons carry
+    /// interval previews.
+    var reviewDisplay: ReviewDisplaySettings {
+        didSet {
+            guard reviewDisplay != oldValue else { return }
+            guard let data = try? JSONEncoder().encode(reviewDisplay) else { return }
+            defaults.set(data, forKey: Self.displayKey)
+        }
+    }
+
     /// The AnkiConnect URL as typed in preferences. The UI only assigns
     /// values `AnkiConnectHTTPClient.endpoint(from:)` accepts.
     var ankiConnectEndpoint: String {
@@ -160,6 +170,7 @@ final class AppState {
             defaults: defaults)
         self.reviewDeckScope = Set(defaults.stringArray(forKey: Self.deckScopeKey) ?? [])
         self.reviewShortcuts = Self.loadReviewShortcuts(from: defaults)
+        self.reviewDisplay = Self.loadReviewDisplay(from: defaults)
         self.sessionSettings = Self.loadSessionSettings(from: defaults)
         self.reminderSettings = Self.loadReminderSettings(from: defaults)
         var reminder = ReminderState()
@@ -365,6 +376,13 @@ final class AppState {
     /// ignores, so repeats can't double-answer.
     @discardableResult
     func handleReviewKey(_ key: String) -> Bool {
+        // The close key is phase-independent: like Escape, it has to work on
+        // the end-of-session screens and on an error just as much as on a card.
+        // (Its resolution doesn't depend on `answerShown`.)
+        if reviewShortcuts.action(forKey: key, answerShown: false) == .close {
+            dismissReview()
+            return true
+        }
         let answerShown: Bool
         switch session.phase {
         case .question: answerShown = false
@@ -384,9 +402,16 @@ final class AppState {
         guard let action = reviewShortcuts.action(forKey: key, answerShown: answerShown)
         else { return false }
         switch action {
+        case .close:
+            // Handled above; unreachable, but the switch stays exhaustive
+            // rather than defaulting so a new action can't slip through.
+            dismissReview()
         case .showAnswer:
             Task { await session.revealAnswer() }
         case .rate(let ease):
+            // A button hidden by pass/fail mode is hidden from the keyboard
+            // too; the key is still swallowed so the card doesn't see it.
+            guard reviewDisplay.allows(rating: ease) else { return true }
             // Shortcuts are configured by name, so they submit by name too —
             // "Good" is ease 2 on a three-button card.
             Task {
@@ -674,6 +699,7 @@ final class AppState {
     private static let endpointKey = "ankiConnectEndpoint"
     private static let shortcutsKey = "reviewShortcuts"
     private static let sessionKey = "sessionSettings"
+    private static let displayKey = "reviewDisplay"
 
     private static func loadSessionSettings(from defaults: UserDefaults) -> SessionSettings {
         var settings = SessionSettings()
@@ -698,6 +724,13 @@ final class AppState {
         guard let data = defaults.data(forKey: shortcutsKey),
               let stored = try? JSONDecoder().decode(ReviewShortcuts.self, from: data)
         else { return ReviewShortcuts() }
+        return stored
+    }
+
+    private static func loadReviewDisplay(from defaults: UserDefaults) -> ReviewDisplaySettings {
+        guard let data = defaults.data(forKey: displayKey),
+              let stored = try? JSONDecoder().decode(ReviewDisplaySettings.self, from: data)
+        else { return ReviewDisplaySettings() }
         return stored
     }
 

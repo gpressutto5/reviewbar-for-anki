@@ -31,6 +31,9 @@ enum PanelTheme {
     /// Dark-gray tile on black, NotchNook-style.
     static let tile = Color.white.opacity(0.12)
     static let cardSurface = Color.white.opacity(0.07)
+    /// Under a light card theme the card gets a paper-white surface; Anki's
+    /// own light reviewer background, and what default black text needs.
+    static let lightCardSurface = Color.white
     static let secondaryText = Color.white.opacity(0.65)
     static let tertiaryText = Color.white.opacity(0.45)
 

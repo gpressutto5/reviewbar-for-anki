@@ -12,6 +12,9 @@ struct ReviewPanelView: View {
     /// Seconds left on the batch screen's auto-close. Nil when it isn't
     /// counting (auto-close off, or another phase).
     @State private var secondsUntilClose: Int?
+    /// Only consulted when the card theme is "match system" — the panel
+    /// itself is always dark, so SwiftUI's own `colorScheme` is no use here.
+    @State private var systemAppearance = SystemAppearance()
 
     /// Cards get as much height as they report needing, up to what fits on
     /// screen alongside the panel's header, buttons, and menu bar.
@@ -275,15 +278,21 @@ struct ReviewPanelView: View {
         }
     }
 
+    /// The card sits on a surface matching its own appearance: a light card
+    /// on the dark tile would show black default text on near-black, and a
+    /// note type with no background of its own would be unreadable.
     private func cardBody(_ html: String, card: CurrentCard) -> some View {
-        CardWebView(cardHTML: html, css: card.css, mediaDir: state.mediaDir) { height in
+        let appearance = state.reviewDisplay.cardAppearance
+        return CardWebView(cardHTML: html, css: card.css, mediaDir: state.mediaDir,
+                           appearance: appearance) { height in
             cardHeight = height.clamped(to: Self.cardHeightRange)
         }
         .frame(height: cardHeight)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(PanelTheme.cardSurface))
+                .fill(systemAppearance.rendersLight(appearance)
+                      ? PanelTheme.lightCardSurface : PanelTheme.cardSurface))
     }
 
     /// Labels, colours and interval previews all come from
@@ -292,7 +301,7 @@ struct ReviewPanelView: View {
     /// ease number here.
     private func ratingButtons(_ card: CurrentCard) -> some View {
         HStack(spacing: 8) {
-            ForEach(card.answerButtons) { button in
+            ForEach(state.reviewDisplay.visibleButtons(card.answerButtons)) { button in
                 Button {
                     Task {
                         await session.submit(ease: button.ease)
@@ -301,7 +310,7 @@ struct ReviewPanelView: View {
                 } label: {
                     VStack(spacing: 1) {
                         Text(button.label)
-                        if let interval = button.interval {
+                        if state.reviewDisplay.showsIntervals, let interval = button.interval {
                             Text(interval)
                                 .font(.caption2.weight(.medium))
                                 .foregroundStyle(PanelTheme.tertiaryText)
