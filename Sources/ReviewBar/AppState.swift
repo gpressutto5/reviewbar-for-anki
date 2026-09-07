@@ -442,12 +442,45 @@ final class AppState {
 
     /// Open (or front) the Settings scene from anywhere, including AppKit
     /// contexts like the review panel's ⌘, key equivalent.
+    ///
+    /// SwiftUI's `openSettings()` is fire-and-forget and, in an accessory app
+    /// driven from a status menu, it sometimes fires into nothing: called
+    /// while the menu is still dismissing or before activation has landed,
+    /// no window appears and no error is raised — the user clicks Settings…
+    /// and nothing happens until they click again. So the open is verified
+    /// (a visible Settings window within a beat) and re-issued if it didn't
+    /// take, and a window that already exists is fronted directly instead of
+    /// asking SwiftUI at all.
     func openSettingsWindow() {
         // Accessory app: without activating, the window opens behind
         // whatever is frontmost.
         NSApplication.shared.activate()
+        if let window = NSApplication.shared.settingsWindow, window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+            elevateSettingsWindow()
+            return
+        }
+        requestSettingsWindow()
+    }
+
+    /// Ask SwiftUI for the window, then check it arrived. Retries are
+    /// spaced a runloop-and-a-bit apart: the first request usually fails only
+    /// because it raced the closing menu, and the second one lands.
+    private func requestSettingsWindow(attempt: Int = 0) {
         openSettingsAction?()
-        elevateSettingsWindow()
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            if NSApplication.shared.settingsWindow?.isVisible == true {
+                elevateSettingsWindow()
+                return
+            }
+            guard attempt < 4 else {
+                Self.log.error("Settings window did not open after \(attempt + 1) requests")
+                return
+            }
+            NSApplication.shared.activate()
+            requestSettingsWindow(attempt: attempt + 1)
+        }
     }
 
     /// Activation isn't enough to clear the review panel: it sits above the
