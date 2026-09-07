@@ -193,6 +193,12 @@ Static linking sidesteps it entirely.
 **`make bundle` is Debug, so it carries `com.apple.security.get-task-allow`**,
 which notarization rejects. Anything shipped must be a Release build.
 
+**Run `make bundle` before tagging a release.** The Xcode build uses
+`SWIFT_STRICT_CONCURRENCY: complete` from `project.yml`; `swift build` and
+`swift test` do not, so code that is clean under SwiftPM can still fail the
+release workflow (it happened in v0.3.0: KVO closures on `NSApp` touching
+main-actor state). `make bundle` is the only local build that matches CI.
+
 **Register the notification delegate at launch, not on first post.** Tapping a
 notification can *launch* the app; if `NudgeNotifier` is only created when a
 notification is posted, that launch has no delegate and the tap is silently
