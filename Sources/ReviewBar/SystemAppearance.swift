@@ -12,9 +12,11 @@ final class SystemAppearance {
 
     init() {
         isDark = Self.isDark(NSApp.effectiveAppearance)
+        // KVO on NSApp delivers on the main thread.
         observation = NSApp.observe(\.effectiveAppearance, options: [.new]) { [weak self] app, _ in
-            let dark = Self.isDark(app.effectiveAppearance)
-            Task { @MainActor [weak self] in self?.isDark = dark }
+            MainActor.assumeIsolated {
+                self?.isDark = Self.isDark(app.effectiveAppearance)
+            }
         }
     }
 
@@ -27,7 +29,7 @@ final class SystemAppearance {
         }
     }
 
-    private static func isDark(_ appearance: NSAppearance) -> Bool {
+    private nonisolated static func isDark(_ appearance: NSAppearance) -> Bool {
         appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
     }
 }

@@ -120,9 +120,13 @@ struct CardWebView: NSViewRepresentable {
             case .system:
                 webView.appearance = NSApp.effectiveAppearance
                 guard systemAppearanceObservation == nil else { return }
+                // KVO on NSApp delivers on the main thread; say so to the
+                // compiler rather than hopping through a Task.
                 systemAppearanceObservation = NSApp.observe(\.effectiveAppearance) {
                     [weak webView] app, _ in
-                    webView?.appearance = app.effectiveAppearance
+                    MainActor.assumeIsolated {
+                        webView?.appearance = app.effectiveAppearance
+                    }
                 }
             }
         }
