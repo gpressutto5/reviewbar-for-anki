@@ -52,7 +52,17 @@ public enum AnkiMedia {
     /// DOM: the card HTML inside `<div id="qa">`, a direct child of
     /// `<body class="card">`. Note-type CSS routinely depends on exactly this
     /// shape (e.g. `.card:has(> #qa)`), and on Anki's `nightMode`/`night_mode`
-    /// body classes for dark themes — mirrored here from the system scheme.
+    /// body classes for dark themes — mirrored here from the colour scheme the
+    /// web view is shown under.
+    ///
+    /// The `body.nightMode` rule is lifted from Anki's own `reviewer.css`,
+    /// colours included. It is how Anki darkens note types that never heard
+    /// of night mode: the stock template says `.card { color: black;
+    /// background-color: white }`, and `body.nightMode` outranks that on
+    /// specificity alone, so it doesn't matter that the note-type CSS comes
+    /// later. Without this rule every such card renders light no matter what
+    /// the card theme says. Kiku-style note types carry their own dark
+    /// styling keyed off the same classes and never hit it.
     public static func documentHTML(cardHTML: String, css: String) -> String {
         """
         <!doctype html>
@@ -60,7 +70,12 @@ public enum AnkiMedia {
         <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>:root { color-scheme: light dark; } body { margin: 0; }</style>
+        <style>
+        :root { color-scheme: light dark; --canvas: #f5f5f5; --fg: #020202; }
+        :root.night-mode { --canvas: #2c2c2c; --fg: #fcfcfc; }
+        body { margin: 0; }
+        body.nightMode { background-color: var(--canvas); color: var(--fg); }
+        </style>
         <style>\(css)</style>
         </head>
         <body class="card isMac"><div id="qa">\(cardHTML)</div>

@@ -157,6 +157,22 @@ import Testing
         #expect(doc.contains("nightMode"))
         #expect(doc.contains("night_mode"))
     }
+
+    @Test func darkensStockTemplatesLikeAnkiDoes() {
+        // The stock template paints .card white; Anki's reviewer.css beats it
+        // with a body.nightMode rule of higher specificity. That rule — and
+        // Anki's canvas/fg colours — must come along, and ahead of the
+        // note-type CSS the way Anki orders them.
+        let doc = AnkiMedia.documentHTML(
+            cardHTML: "x", css: ".card { color: black; background-color: white; }")
+        let rule = "body.nightMode { background-color: var(--canvas); color: var(--fg); }"
+        #expect(doc.contains(rule))
+        #expect(doc.contains("--canvas: #2c2c2c"))
+        #expect(doc.contains("--fg: #fcfcfc"))
+        let ruleIndex = doc.range(of: rule)!.lowerBound
+        let templateIndex = doc.range(of: "background-color: white")!.lowerBound
+        #expect(ruleIndex < templateIndex)
+    }
 }
 
 @Suite struct AVTagRestorerTests {
