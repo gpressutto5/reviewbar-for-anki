@@ -1,5 +1,8 @@
 # ReviewBar
 
+<img width="1131" height="383" alt="image" src="https://github.com/user-attachments/assets/7e2c2660-8ff8-4e37-8d01-f7aab65be8fa" />
+
+
 A macOS menu-bar companion for [Anki](https://apps.ankiweb.net). Review your due
 cards in small batches throughout the day, from a floating panel that grows out
 of the notch — without opening Anki's reviewer window.
