@@ -281,6 +281,16 @@ panel is an AppKit `NSPanel` and can't reach the environment; sending
 **no-op** in this app. ⌘, is handled in the panel's `performKeyEquivalent`
 because the status menu's own ⌘, item only fires while that menu is open.
 
+**Card actions (bury/suspend) resolve before ratings and on both sides of
+the card.** They live behind the header's `···` menu and on Anki's default
+keys (`-` `=` `@` `!`), both through `AppState.performCardAction`; a key that buried on the front but graded on the back
+would be a trap, so `ReviewShortcuts.action(forKey:)` checks them ahead of
+ratings and preferences flag collisions on both sides. Undo is ⌘Z in the
+panel's `performKeyEquivalent`, fixed like Escape, plus a panel button.
+`ReviewShortcuts` has a hand-written `Codable`: the bury/suspend keys default
+*on*, so an absent key means the default while an explicit null means the
+user cleared it — synthesized encoding would omit nils and un-clear them.
+
 **Reviewer keys come from an `NSEvent` local monitor, not `keyboardShortcut`
 or `performKeyEquivalent`.** The card's `WKWebView` is the panel's first
 responder and plain (unmodified) presses are not key equivalents, so space and

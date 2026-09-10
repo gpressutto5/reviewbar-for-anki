@@ -63,7 +63,7 @@ struct ReviewPanelView: View {
             // Controls sit above the card, at a fixed height, so they stay
             // in the same spot on screen (the panel hangs from the top of
             // the screen) no matter how the card below resizes.
-            cardHeader(phase.card)
+            cardHeader(phase)
             controls(for: phase)
                 .frame(maxWidth: .infinity, minHeight: PanelTheme.controlsHeight)
             cardBody(phase.revealed ? phase.card.webAnswer : phase.card.webQuestion,
@@ -283,9 +283,9 @@ struct ReviewPanelView: View {
         }
     }
 
-    private func cardHeader(_ card: CurrentCard) -> some View {
+    private func cardHeader(_ phase: CardPhase) -> some View {
         HStack {
-            Text(card.deckName)
+            Text(phase.card.deckName)
                 .font(.caption.weight(.medium))
                 .kerning(0.3)
                 .foregroundStyle(PanelTheme.secondaryText)
@@ -296,8 +296,36 @@ struct ReviewPanelView: View {
                 Task { await state.undoReview() }
             }
             .disabled(!session.canUndo)
+            cardActionsMenu
+                .disabled(phase.submitting)
             CloseButton { closeSession() }
         }
+    }
+
+    /// The bury/suspend actions behind a "more" glyph — the same actions the
+    /// hotkeys perform, each listed with its current key. Disabled while a
+    /// request is in flight, like the rating buttons.
+    private var cardActionsMenu: some View {
+        Menu {
+            ForEach(CardAction.allCases, id: \.rawValue) { action in
+                Button(menuTitle(for: action)) {
+                    Task { await state.performCardAction(action) }
+                }
+            }
+        } label: {
+            HeaderGlyph(systemImage: "ellipsis")
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel("Card actions")
+        .help("Bury or suspend this card")
+    }
+
+    private func menuTitle(for action: CardAction) -> String {
+        guard let key = state.reviewShortcuts[action] else { return action.label }
+        return "\(action.label)    \(ReviewShortcuts.displayLabel(for: key))"
     }
 
     /// The card sits on a surface matching its own appearance: a light card
