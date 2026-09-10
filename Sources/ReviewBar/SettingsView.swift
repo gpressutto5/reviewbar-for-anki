@@ -702,7 +702,7 @@ private struct ShortcutsSettingsTab: View {
             }
 
             GridRow {
-                Color.clear.frame(height: 0)
+                Color.clear.frame(width: 0, height: 0)
                 VStack(alignment: .leading, spacing: 6) {
                     Button("Use Anki Defaults") {
                         state.reviewShortcuts = ReviewShortcuts()
