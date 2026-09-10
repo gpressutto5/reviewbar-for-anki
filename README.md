@@ -50,6 +50,9 @@ Look for ReviewBar's icon in the menu bar after launching.
   your choice to close). The previews can be hidden, the buttons cut down to
   pass/fail (Again and Good only), and cards can render light, dark, or match
   the system.
+- **Undo, bury and suspend** — ⌘Z (or the panel's undo button) takes back the
+  last answer like Anki's Undo, and Anki's `-` `=` `@` `!` keys bury or suspend
+  the card or its note, also reachable from the panel's ··· menu.
 - **Soft sessions** — after a batch of N cards, ReviewBar offers to stop rather
   than marching you through the whole backlog.
 - **Inactivity reminders** — a quiet notch peek when you haven't reviewed in a
