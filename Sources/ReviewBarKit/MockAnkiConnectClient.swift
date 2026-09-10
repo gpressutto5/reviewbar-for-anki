@@ -7,13 +7,20 @@ public actor MockAnkiConnectClient: AnkiConnectClient {
     public private(set) var answered: [(cardId: Int64, ease: Ease)] = []
     /// The cards behind `answered`, most recent last — what `undo` restores.
     private var answeredCards: [CurrentCard] = []
+    public private(set) var suspended: Set<Int64> = []
+    public private(set) var buried: Set<Int64> = []
     public private(set) var undoCount = 0
     public private(set) var reviewInProgress = false
     private var answerShown = false
     public var failWithUnreachable = false
+    /// Card → note. Cards not listed are each their own note (note id = card
+    /// id); list two cards under one note to make them siblings.
+    private let noteIds: [Int64: Int64]
 
-    public init(queue: [CurrentCard] = MockAnkiConnectClient.sampleQueue) {
+    public init(queue: [CurrentCard] = MockAnkiConnectClient.sampleQueue,
+                noteIds: [Int64: Int64] = [:]) {
         self.queue = queue
+        self.noteIds = noteIds
     }
 
     public func setUnreachable(_ value: Bool) { failWithUnreachable = value }
@@ -109,6 +116,49 @@ public actor MockAnkiConnectClient: AnkiConnectClient {
         queue.insert(card, at: 0)
         answerShown = false
         reviewInProgress = true
+    }
+
+    public func suspend(cards: [Int64]) async throws {
+        try checkReachable()
+        suspended.formUnion(cards)
+        removeFromQueue(cards)
+    }
+
+    public func bury(cards: [Int64]) async throws {
+        try checkReachable()
+        buried.formUnion(cards)
+        removeFromQueue(cards)
+    }
+
+    private func removeFromQueue(_ cards: [Int64]) {
+        queue.removeAll { cards.contains($0.cardId) }
+        if queue.isEmpty { reviewInProgress = false }
+    }
+
+    public func noteId(ofCard cardId: Int64) async throws -> Int64 {
+        try checkReachable()
+        return noteIds[cardId] ?? cardId
+    }
+
+    /// Understands the two searches `ReviewSession` issues: `nid:N`, with
+    /// optional `-is:suspended` / `-is:buried` exclusions.
+    public func findCards(query: String) async throws -> [Int64] {
+        try checkReachable()
+        let terms = query.split(separator: " ").map(String.init)
+        guard let nid = terms.first(where: { $0.hasPrefix("nid:") })
+            .flatMap({ Int64($0.dropFirst(4)) }) else { return [] }
+        return knownCardIds.filter { id in
+            (noteIds[id] ?? id) == nid
+                && !(terms.contains("-is:suspended") && suspended.contains(id))
+                && !(terms.contains("-is:buried") && buried.contains(id))
+        }
+    }
+
+    /// Every card the mock has seen: queued, answered, suspended or buried.
+    private var knownCardIds: [Int64] {
+        var seen: Set<Int64> = []
+        return ((queue + answeredCards).map(\.cardId) + suspended.sorted() + buried.sorted())
+            .filter { seen.insert($0).inserted }
     }
 
     public static let sampleQueue: [CurrentCard] = [

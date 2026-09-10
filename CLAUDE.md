@@ -150,6 +150,16 @@ Anki's reviewed-today counter by one; `AppState.undoReview()` calls
 `ReviewCounterMonitor.noteUndo()` first, or the drop reads as a day rollover
 and wipes the reminder clock.
 
+**Bury is a raw queue write, and that is a known trade-off.** AnkiConnect has
+`suspend` (a real scheduler op) but no bury action, so `bury(cards:)` uses
+`setSpecificValueOfCard` to set `queue = -2` (`CardQueue::UserBuried`) — the
+same change Anki's bury makes for a card in a normal deck, written through
+`Card.flush()` so mtime/usn are stamped and the study queue is rebuilt. It
+does *not* create an undo entry in Anki. Bury-note excludes suspended and
+already-buried siblings via `findCards("nid:N -is:suspended -is:buried")`,
+like Anki. After any bury/suspend the session re-enters the deck for the same
+reason as undo: the reviewer is still holding the removed card.
+
 **Sync on close is opt-in (`SessionSettings.syncOnClose`, default off).**
 It used to run unconditionally after any answered card, and people who went
 back to Anki found it mid-sync. Don't turn it back on by default.

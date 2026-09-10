@@ -10,7 +10,12 @@ import Testing
         #expect(shortcuts.good == "3")
         #expect(shortcuts.easy == "4")
         #expect(shortcuts.spaceAnswersGood)
+        #expect(shortcuts.buryCard == "-")
+        #expect(shortcuts.buryNote == "=")
+        #expect(shortcuts.suspendCard == "@")
+        #expect(shortcuts.suspendNote == "!")
         #expect(shortcuts.conflicts.isEmpty)
+        #expect(shortcuts.cardActionConflicts.isEmpty)
     }
 
     @Test func spaceRevealsThenAnswersGood() {
@@ -120,5 +125,65 @@ import Testing
         let data = Data(#"{"again":"1","hard":"2","good":"3","easy":"4","spaceAnswersGood":true}"#.utf8)
         let shortcuts = try JSONDecoder().decode(ReviewShortcuts.self, from: data)
         #expect(shortcuts == ReviewShortcuts())
+    }
+}
+
+@Suite struct CardActionShortcutTests {
+    @Test func cardKeysFireOnBothSidesOfTheCard() {
+        let shortcuts = ReviewShortcuts()
+        for (key, action) in [("-", CardAction.buryCard), ("=", .buryNote),
+                              ("@", .suspendCard), ("!", .suspendNote)] {
+            #expect(shortcuts.action(forKey: key, answerShown: false) == .cardAction(action))
+            #expect(shortcuts.action(forKey: key, answerShown: true) == .cardAction(action))
+        }
+    }
+
+    @Test func aClearedKeyDoesNothing() {
+        var shortcuts = ReviewShortcuts()
+        shortcuts.buryCard = nil
+        #expect(shortcuts.action(forKey: "-", answerShown: true) == nil)
+        #expect(shortcuts.cardActionConflicts.isEmpty)
+    }
+
+    @Test func cardKeyWinsOverARatingAndBothSidesAreFlagged() {
+        var shortcuts = ReviewShortcuts()
+        shortcuts.suspendCard = "3"
+        #expect(shortcuts.action(forKey: "3", answerShown: true) == .cardAction(.suspendCard))
+        #expect(shortcuts.conflicts == [.good])
+        #expect(shortcuts.cardActionConflicts == [.suspendCard])
+    }
+
+    @Test func closeAndRevealKeysBeatCardKeys() {
+        var shortcuts = ReviewShortcuts(close: "-")
+        #expect(shortcuts.action(forKey: "-", answerShown: false) == .close)
+        #expect(shortcuts.cardActionConflicts == [.buryCard])
+
+        shortcuts = ReviewShortcuts()
+        shortcuts.buryNote = " "
+        #expect(shortcuts.action(forKey: " ", answerShown: false) == .showAnswer)
+        #expect(shortcuts.cardActionConflicts == [.buryNote])
+    }
+
+    @Test func duplicateCardKeysAreFlaggedAndFirstWins() {
+        var shortcuts = ReviewShortcuts()
+        shortcuts.suspendNote = "-"
+        #expect(shortcuts.cardActionConflicts == [.buryCard, .suspendNote])
+        #expect(shortcuts.action(forKey: "-", answerShown: false) == .cardAction(.buryCard))
+    }
+
+    /// Absent keys (a blob from before these existed) mean Anki's defaults;
+    /// a key the user cleared is stored as null and must stay cleared.
+    @Test func decodingDistinguishesMissingFromCleared() throws {
+        let old = Data(#"{"again":"1","hard":"2","good":"3","easy":"4","spaceAnswersGood":true}"#.utf8)
+        #expect(try JSONDecoder().decode(ReviewShortcuts.self, from: old).buryCard == "-")
+
+        var cleared = ReviewShortcuts()
+        cleared.buryCard = nil
+        cleared.suspendNote = "s"
+        let data = try JSONEncoder().encode(cleared)
+        let decoded = try JSONDecoder().decode(ReviewShortcuts.self, from: data)
+        #expect(decoded == cleared)
+        #expect(decoded.buryCard == nil)
+        #expect(decoded.suspendNote == "s")
     }
 }

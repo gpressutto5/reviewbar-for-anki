@@ -631,8 +631,9 @@ private struct AppearanceSettingsTab: View {
 // MARK: - Shortcuts
 
 /// Anki-style reviewer keys. Deliberately narrow: one plain character per
-/// rating plus the space/Return behaviour, no modifier combos — the panel
-/// leaves modified presses to the responder chain (⌘, still opens Settings).
+/// rating or card action plus the space/Return behaviour, no modifier combos
+/// — the panel leaves modified presses to the responder chain (⌘, still
+/// opens Settings, ⌘Z is Undo and fixed, like Escape).
 private struct ShortcutsSettingsTab: View {
     @Bindable var state: AppState
 
@@ -672,29 +673,43 @@ private struct ShortcutsSettingsTab: View {
 
             Divider().gridCellUnsizedAxes(.horizontal)
 
+            ForEach(CardAction.allCases, id: \.rawValue) { action in
+                GridRow {
+                    Text("\(action.label):")
+                        .gridColumnAlignment(.trailing)
+                    OptionalKeyRow(key: binding(for: action),
+                                   conflicts: cardActionConflicts.contains(action))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+
+            GridRow {
+                Color.clear.frame(width: 0, height: 0)
+                Caption("Anki's keys, on either side of the card. The same actions sit behind the ··· button in the panel.")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Divider().gridCellUnsizedAxes(.horizontal)
+
+            GridRow {
+                Text("Undo:")
+                    .gridColumnAlignment(.trailing)
+                VStack(alignment: .leading, spacing: 6) {
+                    FixedKey("⌘Z")
+                    Caption("Takes back the last answer, like Anki's Undo. Also a button in the panel.")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             GridRow {
                 Text("Close panel:")
                     .gridColumnAlignment(.trailing)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
-                        Text("Esc")
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(RoundedRectangle(cornerRadius: 5)
-                                .fill(.quaternary.opacity(0.6)))
+                        FixedKey("Esc")
                         Text("or").foregroundStyle(.secondary)
-                        KeyField(key: closeKey)
-                        if state.reviewShortcuts.close == nil {
-                            Text("none").foregroundStyle(.secondary)
-                        } else {
-                            Button("Clear") { state.reviewShortcuts.close = nil }
-                                .controlSize(.small)
-                        }
-                        if state.reviewShortcuts.closeKeyConflicts {
-                            Label("Already used", systemImage: "exclamationmark.triangle.fill")
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                        }
+                        OptionalKeyRow(key: closeKey,
+                                       conflicts: state.reviewShortcuts.closeKeyConflicts)
                     }
                     Caption("Escape always closes the panel. Add a second key here if you'd rather not reach for it.")
                 }
@@ -708,7 +723,7 @@ private struct ShortcutsSettingsTab: View {
                         state.reviewShortcuts = ReviewShortcuts()
                     }
                     .disabled(state.reviewShortcuts == ReviewShortcuts())
-                    Caption("Rating keys only apply once the answer is showing.")
+                    Caption("Rating keys only apply once the answer is showing; bury and suspend work on both sides.")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -717,17 +732,60 @@ private struct ShortcutsSettingsTab: View {
     }
 
     private var conflicts: Set<Ease> { state.reviewShortcuts.conflicts }
+    private var cardActionConflicts: Set<CardAction> { state.reviewShortcuts.cardActionConflicts }
 
     private func binding(for ease: Ease) -> Binding<String> {
         Binding(get: { state.reviewShortcuts[ease] },
                 set: { state.reviewShortcuts[ease] = $0 })
     }
 
-    /// The close key as a plain string for `KeyField`: unset reads as empty
-    /// (the field shows "—"), and typing a character sets it.
-    private var closeKey: Binding<String> {
-        Binding(get: { state.reviewShortcuts.close ?? "" },
-                set: { state.reviewShortcuts.close = $0.isEmpty ? nil : $0 })
+    private func binding(for action: CardAction) -> Binding<String?> {
+        Binding(get: { state.reviewShortcuts[action] },
+                set: { state.reviewShortcuts[action] = $0 })
+    }
+
+    private var closeKey: Binding<String?> {
+        Binding(get: { state.reviewShortcuts.close },
+                set: { state.reviewShortcuts.close = $0 })
+    }
+}
+
+/// A key that can't be changed (Esc, ⌘Z), drawn as a keycap.
+private struct FixedKey: View {
+    let label: String
+    init(_ label: String) { self.label = label }
+
+    var body: some View {
+        Text(label)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(RoundedRectangle(cornerRadius: 5)
+                .fill(.quaternary.opacity(0.6)))
+    }
+}
+
+/// An optional binding: `KeyField` plus "none" or a Clear button, and the
+/// conflict flag. Unset reads as empty (the field shows "—").
+private struct OptionalKeyRow: View {
+    @Binding var key: String?
+    let conflicts: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            KeyField(key: Binding(get: { key ?? "" },
+                                  set: { key = $0.isEmpty ? nil : $0 }))
+            if key == nil {
+                Text("none").foregroundStyle(.secondary)
+            } else {
+                Button("Clear") { key = nil }
+                    .controlSize(.small)
+            }
+            if conflicts {
+                Label("Already used", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
     }
 }
 

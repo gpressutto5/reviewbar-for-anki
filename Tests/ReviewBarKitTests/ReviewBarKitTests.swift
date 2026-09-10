@@ -397,6 +397,87 @@ import Testing
     }
 }
 
+@Suite @MainActor struct ReviewSessionCardActionTests {
+    @Test func suspendingTheCardMovesOnWithoutCountingAnAnswer() async throws {
+        let mock = MockAnkiConnectClient()
+        let session = ReviewSession(client: mock)
+        await session.start(decks: ["Sample"])
+
+        await session.perform(.suspendCard)
+        guard case .question(let card) = session.phase else {
+            Issue.record("expected the next card, got \(session.phase)"); return
+        }
+        #expect(card.cardId == 2)
+        #expect(await mock.suspended == [1])
+        #expect(session.answeredCount == 0)
+        #expect(await mock.answered.isEmpty)
+    }
+
+    @Test func buryingWorksFromTheAnswerSideToo() async throws {
+        let mock = MockAnkiConnectClient()
+        let session = ReviewSession(client: mock)
+        await session.start(decks: ["Sample"])
+        await session.revealAnswer()
+
+        await session.perform(.buryCard)
+        guard case .question(let card) = session.phase, card.cardId == 2 else {
+            Issue.record("expected card 2, got \(session.phase)"); return
+        }
+        #expect(await mock.buried == [1])
+    }
+
+    @Test func noteActionsTakeTheSiblingsAlong() async throws {
+        // Both sample cards belong to one note.
+        let mock = MockAnkiConnectClient(noteIds: [1: 100, 2: 100])
+        let session = ReviewSession(client: mock)
+        await session.start(decks: ["Sample"])
+
+        await session.perform(.buryNote)
+        // The sibling went with it, so the deck is drained.
+        #expect(session.phase == .finished)
+        #expect(await mock.buried == [1, 2])
+    }
+
+    @Test func suspendNoteLeavesNothingBehind() async throws {
+        let mock = MockAnkiConnectClient(noteIds: [1: 100, 2: 100])
+        let session = ReviewSession(client: mock)
+        await session.start(decks: ["Sample"])
+        await session.perform(.suspendNote)
+        #expect(session.phase == .finished)
+        #expect(await mock.suspended == [1, 2])
+    }
+
+    @Test func cardActionsClearTheUndoHistory() async throws {
+        let mock = MockAnkiConnectClient(
+            queue: MockAnkiConnectClient.sampleQueue + [MockAnkiConnectClient.sampleQueue[0]])
+        let session = ReviewSession(client: mock)
+        await session.start(decks: ["Sample"])
+        await session.revealAnswer()
+        await session.submit(ease: .good)
+        #expect(session.canUndo)
+        await session.perform(.suspendCard)
+        guard case .question = session.phase else {
+            Issue.record("expected a card, got \(session.phase)"); return
+        }
+        // Anki's undo would now take back the suspend, not the answer.
+        #expect(!session.canUndo)
+    }
+
+    @Test func cardActionsAreIgnoredOutsideACard() async throws {
+        let mock = MockAnkiConnectClient()
+        let session = ReviewSession(client: mock)
+        await session.perform(.buryCard)
+        #expect(session.phase == .idle)
+        await session.start(decks: ["Sample"], cardLimit: 1)
+        await session.revealAnswer()
+        await session.submit(ease: .good)
+        await session.perform(.suspendNote)
+        #expect(session.phase == .batchComplete(answered: 1))
+        #expect(await mock.buried.isEmpty)
+        #expect(await mock.suspended.isEmpty)
+    }
+}
+
 @Suite @MainActor struct ReviewSessionTests {
     @Test func happyPathReviewsWholeQueue() async throws {
         let mock = MockAnkiConnectClient()
@@ -595,6 +676,10 @@ private actor MultiDeckClient: AnkiConnectClient {
     func sync() async throws {}
     func numCardsReviewedToday() async throws -> Int { reviewedCount }
     func undo() async throws {}
+    func suspend(cards: [Int64]) async throws {}
+    func bury(cards: [Int64]) async throws {}
+    func noteId(ofCard cardId: Int64) async throws -> Int64 { cardId }
+    func findCards(query: String) async throws -> [Int64] { [] }
 
     func startReview(deckName: String) async throws {
         activeDeck = queues[deckName]?.isEmpty == false ? deckName : nil

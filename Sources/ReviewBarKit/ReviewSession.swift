@@ -28,6 +28,21 @@ public enum ReviewPhase: Equatable, Sendable {
     }
 }
 
+/// Anki's reviewer actions on the card itself, as opposed to grading it.
+/// Reached by hotkey or from the panel header's "more" menu.
+public enum CardAction: String, CaseIterable, Codable, Sendable {
+    case buryCard, buryNote, suspendCard, suspendNote
+
+    public var label: String {
+        switch self {
+        case .buryCard: "Bury card"
+        case .buryNote: "Bury note"
+        case .suspendCard: "Suspend card"
+        case .suspendNote: "Suspend note"
+        }
+    }
+}
+
 /// State machine over AnkiConnect's GUI review flow
 /// (`guiDeckReview → guiCurrentCard → guiStartCardTimer → guiShowAnswer →
 /// guiAnswerCard`). `guiDeckReview` takes a single deck, so the session holds
@@ -217,6 +232,52 @@ public final class ReviewSession {
         } catch {
             if (error as? AnkiConnectError)?.isReviewInactive == true { return nil }
             throw error
+        }
+    }
+
+    // MARK: Card actions
+
+    /// Bury or suspend the card on screen (or its whole note) and move on to
+    /// the next card, from either side of the card like Anki. Not an answer:
+    /// the batch count is untouched. Clears the undo history — Anki's undo
+    /// would now take back the suspend (or, for a bury written outside the
+    /// scheduler, whatever came before it), not an answer.
+    public func perform(_ action: CardAction) async {
+        let card: CurrentCard
+        switch phase {
+        case .question(let current), .answer(let current): card = current
+        case .idle, .entering, .submitting, .batchComplete, .finished, .failed: return
+        }
+        guard let deck = activeDeck else { return }
+        // Keeps the card on screen with input disabled while the request
+        // runs, instead of flashing a spinner for one round trip.
+        phase = .submitting(card)
+        do {
+            switch action {
+            case .buryCard:
+                try await client.bury(cards: [card.cardId])
+            case .suspendCard:
+                try await client.suspend(cards: [card.cardId])
+            case .buryNote:
+                let note = try await client.noteId(ofCard: card.cardId)
+                // Like Anki's bury-note: suspended and already-buried
+                // siblings are left as they are.
+                try await client.bury(cards: try await client.findCards(
+                    query: "nid:\(note) -is:suspended -is:buried"))
+            case .suspendNote:
+                let note = try await client.noteId(ofCard: card.cardId)
+                try await client.suspend(cards: try await client.findCards(query: "nid:\(note)"))
+            }
+            undoable = []
+            // Anki's reviewer still holds the card just removed (it refreshes
+            // only while Anki's window is focused). Re-entering the deck makes
+            // it fetch the next one — from a rebuilt queue, as after Anki's
+            // own bury.
+            phase = .entering
+            try await client.startReview(deckName: deck)
+            await showNextCard()
+        } catch {
+            fail(error)
         }
     }
 

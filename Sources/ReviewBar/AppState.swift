@@ -418,8 +418,19 @@ final class AppState {
                 await session.submit(rating: ease)
                 await refresh()
             }
+        case .cardAction(let cardAction):
+            Task { await performCardAction(cardAction) }
         }
         return true
+    }
+
+    /// Bury or suspend the card on screen — the hotkeys and the panel's
+    /// "more" menu both land here. Works on either side of the card; the
+    /// refresh is for the due count, which just dropped by one (or a note's
+    /// worth).
+    func performCardAction(_ action: CardAction) async {
+        await session.perform(action)
+        await refresh()
     }
 
     /// Take back the last answer — the panel's Undo button and ⌘Z, matching

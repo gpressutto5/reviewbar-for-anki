@@ -33,6 +33,20 @@ public protocol AnkiConnectClient: Sendable {
     /// how the reviewer is made to catch up.
     func undo() async throws
 
+    /// Suspend cards through Anki's scheduler (`suspend`). Already-suspended
+    /// cards are skipped by AnkiConnect.
+    func suspend(cards: [Int64]) async throws
+
+    /// Bury cards until Anki's next day. AnkiConnect has no bury action, so
+    /// the live client writes the card's queue flag directly — the same
+    /// change Anki's own bury makes for a card in a normal deck.
+    func bury(cards: [Int64]) async throws
+
+    /// The note a card belongs to (`cardsToNotes`, a plain read).
+    func noteId(ofCard cardId: Int64) async throws -> Int64
+
+    /// Card ids matching an Anki search (`findCards`, a plain read).
+    func findCards(query: String) async throws -> [Int64]
 }
 
 /// Live implementation speaking AnkiConnect's JSON-over-HTTP protocol.
@@ -128,11 +142,65 @@ public actor AnkiConnectHTTPClient: AnkiConnectClient {
         let _: Bool = try await invoke("guiUndo")
     }
 
+    public func suspend(cards: [Int64]) async throws {
+        guard !cards.isEmpty else { return }
+        // False means every card was already suspended — not a failure.
+        let _: Bool = try await invoke("suspend", params: ["cards": cards])
+    }
+
+    /// Anki's `CardQueue::UserBuried`: buried by hand, unburied at the next
+    /// day rollover (or by Unbury in Anki), exactly like `-` in Anki's own
+    /// reviewer. `setSpecificValueOfCard` writes through `Card.flush()`, which
+    /// stamps mtime/usn so the change syncs, and Anki rebuilds its study
+    /// queue after any card update, so the buried card doesn't come back.
+    /// What it lacks versus a scheduler op: an undo entry in Anki.
+    public func bury(cards: [Int64]) async throws {
+        for card in cards {
+            let outcomes: [SetValueOutcome] = try await invoke(
+                "setSpecificValueOfCard",
+                params: ["card": card, "keys": ["queue"],
+                         "newValues": [Self.userBuriedQueue],
+                         "warning_check": true])
+            if let failure = outcomes.compactMap(\.failure).first {
+                throw AnkiConnectError.api(failure)
+            }
+        }
+    }
+
+    private static let userBuriedQueue = -2
+
+    public func noteId(ofCard cardId: Int64) async throws -> Int64 {
+        let notes: [Int64] = try await invoke("cardsToNotes", params: ["cards": [cardId]])
+        guard let note = notes.first else { throw AnkiConnectError.malformedResponse }
+        return note
+    }
+
+    public func findCards(query: String) async throws -> [Int64] {
+        try await invoke("findCards", params: ["query": query])
+    }
+
     // MARK: Transport
 
     private struct Envelope<T: Decodable>: Decodable {
         let result: T?
         let error: String?
+    }
+
+    /// One element of `setSpecificValueOfCard`'s result: `true`, or
+    /// `[false, "message"]` when the write raised.
+    private struct SetValueOutcome: Decodable {
+        let failure: String?
+
+        init(from decoder: any Decoder) throws {
+            if let ok = try? decoder.singleValueContainer().decode(Bool.self) {
+                failure = ok ? nil : "setSpecificValueOfCard refused the change"
+                return
+            }
+            var parts = try decoder.unkeyedContainer()
+            _ = try parts.decode(Bool.self)
+            failure = try parts.decodeIfPresent(String.self)
+                ?? "setSpecificValueOfCard failed"
+        }
     }
 
     /// For actions whose success result is `null` (e.g. `sync`): only the
