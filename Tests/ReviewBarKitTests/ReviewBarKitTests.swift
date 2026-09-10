@@ -267,6 +267,16 @@ import Testing
         #expect(SessionSettings(autoCloseDelay: 0).autoCloses == false)
         #expect(SessionSettings(autoCloseDelay: 6).autoCloses)
     }
+
+    /// Syncing on close surprised people who went back to Anki mid-sync, so
+    /// it is opt-in — and a blob from before the setting existed stays off.
+    @Test func syncOnCloseIsOffByDefaultAndForOldBlobs() throws {
+        #expect(SessionSettings().syncOnClose == false)
+        let stored = Data(#"{"cardsPerBatch": 25}"#.utf8)
+        #expect(try JSONDecoder().decode(SessionSettings.self, from: stored).syncOnClose == false)
+        let on = try JSONEncoder().encode(SessionSettings(syncOnClose: true))
+        #expect(try JSONDecoder().decode(SessionSettings.self, from: on).syncOnClose)
+    }
 }
 
 @Suite @MainActor struct ReviewSessionTests {

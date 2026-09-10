@@ -435,6 +435,10 @@ private struct ReviewSettingsTab: View {
                         .fixedSize()
                     }
                     Caption("Applies when a session ends and when you're caught up — the button counts down, and anything you click cancels it. Errors always wait for you.")
+                    Toggle("Sync with AnkiWeb after answering cards",
+                           isOn: $state.sessionSettings.syncOnClose)
+                        .padding(.top, 6)
+                    Caption("Runs Anki's Sync when the panel closes. Off, Anki keeps syncing on its own schedule.")
                 }
                 .gridColumnAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)

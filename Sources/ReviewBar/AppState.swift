@@ -509,15 +509,18 @@ final class AppState {
         }
     }
 
-    /// Runs when the review panel closes: if any cards were answered, push
-    /// them to AnkiWeb (fire-and-forget — sync failures such as "no sync
+    /// Runs when the review panel closes: if any cards were answered, reset
+    /// the reminder clock and — only when the user opted in — ask Anki to
+    /// sync with AnkiWeb (fire-and-forget: sync failures such as "no sync
     /// account" shouldn't surface as review errors), then refresh the badge.
     func finishReview() async {
         if session.answeredCount > 0 {
             // Don't wait for the counter poll to notice: any answered card
             // buys the full interval right now.
             reminder.recordReview(at: Date())
-            try? await client.sync()
+            if sessionSettings.syncOnClose {
+                try? await client.sync()
+            }
         }
         await refresh()
         await evaluateReminder()

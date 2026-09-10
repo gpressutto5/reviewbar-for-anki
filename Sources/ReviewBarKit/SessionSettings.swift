@@ -23,13 +23,20 @@ public struct SessionSettings: Codable, Equatable, Sendable {
     /// change your mind — a countdown you can only catch the tail of reads as
     /// the panel vanishing on its own.
     public var autoCloseDelay: TimeInterval
+    /// Ask Anki to sync with AnkiWeb when the panel closes after answers.
+    /// Off by default: Anki syncs on its own schedule (and on close), and a
+    /// sync kicked off every time the panel folds away surprised people who
+    /// went back to Anki and found it mid-sync.
+    public var syncOnClose: Bool
 
     public init(isLimited: Bool = true,
                 cardsPerBatch: Int = 10,
-                autoCloseDelay: TimeInterval = 10) {
+                autoCloseDelay: TimeInterval = 10,
+                syncOnClose: Bool = false) {
         self.isLimited = isLimited
         self.cardsPerBatch = cardsPerBatch
         self.autoCloseDelay = autoCloseDelay
+        self.syncOnClose = syncOnClose
     }
 
     /// The number `ReviewSession` should be started with: nil = unlimited.
@@ -48,6 +55,7 @@ public struct SessionSettings: Codable, Equatable, Sendable {
         isLimited = try c.decodeIfPresent(Bool.self, forKey: .isLimited) ?? d.isLimited
         cardsPerBatch = try c.decodeIfPresent(Int.self, forKey: .cardsPerBatch) ?? d.cardsPerBatch
         autoCloseDelay = try c.decodeIfPresent(TimeInterval.self, forKey: .autoCloseDelay) ?? d.autoCloseDelay
+        syncOnClose = try c.decodeIfPresent(Bool.self, forKey: .syncOnClose) ?? d.syncOnClose
     }
 
     private static let fallback = SessionSettings()

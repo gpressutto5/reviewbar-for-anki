@@ -133,6 +133,10 @@ rollover) are ReviewBarKit logic so they can be table-tested; the app only
 supplies the reading and the clock, and `reviewedToday` is derived from the
 monitor rather than stored a second time.
 
+**Sync on close is opt-in (`SessionSettings.syncOnClose`, default off).**
+It used to run unconditionally after any answered card, and people who went
+back to Anki found it mid-sync. Don't turn it back on by default.
+
 **Duplicate answers are prevented by construction.** `submit(ease:)` only acts in
 `.answer` and immediately moves to `.submitting`; eases absent from `card.buttons`
 are rejected. Keep it that way rather than adding flags.
