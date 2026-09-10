@@ -151,22 +151,48 @@ struct TileButtonStyle: ButtonStyle {
 /// Circular ✕ that replaces the old "Stop" text button.
 struct CloseButton: View {
     let action: () -> Void
+
+    var body: some View {
+        HeaderIconButton(systemImage: "xmark", label: "Close review", action: action)
+            .keyboardShortcut(.cancelAction)
+    }
+}
+
+/// The small round glyph buttons in the card header (close, undo). Dims
+/// when disabled so an unavailable action still shows where it lives.
+struct HeaderIconButton: View {
+    let systemImage: String
+    let label: String
+    let action: () -> Void
     @State private var hovering = false
+    @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "xmark")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.white.opacity(hovering ? 0.95 : 0.75))
-                .frame(width: 24, height: 24)
-                .background(Circle().fill(.white.opacity(hovering ? 0.2 : 0.12)))
-                .contentShape(Circle())
+            HeaderGlyph(systemImage: systemImage, highlighted: hovering && isEnabled)
         }
         .buttonStyle(.plain)
-        .keyboardShortcut(.cancelAction)
+        .opacity(isEnabled ? 1 : 0.35)
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.12), value: hovering)
-        .accessibilityLabel("Close review")
+        .accessibilityLabel(label)
+        .help(label)
+    }
+}
+
+/// The round glyph itself, shared by `HeaderIconButton` and the card-actions
+/// menu so a button and a menu in the header look identical.
+struct HeaderGlyph: View {
+    let systemImage: String
+    var highlighted = false
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(.white.opacity(highlighted ? 0.95 : 0.75))
+            .frame(width: 24, height: 24)
+            .background(Circle().fill(.white.opacity(highlighted ? 0.2 : 0.12)))
+            .contentShape(Circle())
     }
 }
 

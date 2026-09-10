@@ -5,6 +5,9 @@ import Foundation
 public actor MockAnkiConnectClient: AnkiConnectClient {
     public var queue: [CurrentCard]
     public private(set) var answered: [(cardId: Int64, ease: Ease)] = []
+    /// The cards behind `answered`, most recent last — what `undo` restores.
+    private var answeredCards: [CurrentCard] = []
+    public private(set) var undoCount = 0
     public private(set) var reviewInProgress = false
     private var answerShown = false
     public var failWithUnreachable = false
@@ -77,6 +80,7 @@ public actor MockAnkiConnectClient: AnkiConnectClient {
             throw AnkiConnectError.api("Not in answer state")
         }
         answered.append((card.cardId, ease))
+        answeredCards.append(card)
         queue.removeFirst()
         answerShown = false
         if queue.isEmpty { reviewInProgress = false }
@@ -92,6 +96,19 @@ public actor MockAnkiConnectClient: AnkiConnectClient {
     public func sync() async throws {
         try checkReachable()
         syncCount += 1
+    }
+
+    /// Like Anki: the undone card goes back to the front of the queue, on its
+    /// question side, and review state resumes if it had ended. Unlike Anki
+    /// this is synchronous, so the session's first re-fetch already sees it.
+    public func undo() async throws {
+        try checkReachable()
+        undoCount += 1
+        guard let card = answeredCards.popLast() else { return }
+        answered.removeLast()
+        queue.insert(card, at: 0)
+        answerShown = false
+        reviewInProgress = true
     }
 
     public static let sampleQueue: [CurrentCard] = [

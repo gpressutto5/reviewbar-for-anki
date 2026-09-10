@@ -39,6 +39,16 @@ public struct ReviewCounterMonitor: Equatable, Sendable {
         return .unchanged
     }
 
+    /// An answer was taken back from ReviewBar. Anki drops the review from
+    /// its counter, so the next reading comes in one lower — which the delta
+    /// rule would otherwise read as a day rollover and reset the reminder
+    /// clock, snooze and all. Adjusting the last reading makes the next one
+    /// compare as unchanged.
+    public mutating func noteUndo() {
+        guard let last = lastCount, last > 0 else { return }
+        lastCount = last - 1
+    }
+
     /// Record a reading and fold it into the reminder state.
     @discardableResult
     public mutating func observe(_ count: Int, at date: Date,

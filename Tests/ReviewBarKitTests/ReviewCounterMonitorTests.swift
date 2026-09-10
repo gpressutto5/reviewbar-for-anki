@@ -24,6 +24,24 @@ import Testing
         #expect(monitor.lastCount == count)
     }
 
+    /// An undo from ReviewBar drops the counter by one. Announced first, that
+    /// reading is "unchanged" — not the day rollover a bare decrease means.
+    @Test func anAnnouncedUndoIsNotADayRollover() {
+        var monitor = ReviewCounterMonitor(lastCount: 5)
+        monitor.noteUndo()
+        #expect(monitor.lastCount == 4)
+        #expect(monitor.observe(4) == .unchanged)
+        // A drop the undo doesn't account for is still a rollover.
+        #expect(monitor.observe(0) == .dayRollover)
+        // Nothing to take back from an empty or unknown counter.
+        var empty = ReviewCounterMonitor(lastCount: 0)
+        empty.noteUndo()
+        #expect(empty.lastCount == 0)
+        var unknown = ReviewCounterMonitor()
+        unknown.noteUndo()
+        #expect(unknown.lastCount == nil)
+    }
+
     // MARK: Folding into the reminder state
 
     /// The first reading tells us *whether* they reviewed today, not when, so

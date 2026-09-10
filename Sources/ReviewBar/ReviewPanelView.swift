@@ -102,7 +102,7 @@ struct ReviewPanelView: View {
     }
 
     @ViewBuilder private var starting: some View {
-        ProgressView("Starting review…")
+        ProgressView(session.isUndoing ? "Undoing…" : "Starting review…")
             .tint(.white)
             .foregroundStyle(PanelTheme.secondaryText)
             .frame(maxWidth: .infinity)
@@ -186,8 +186,22 @@ struct ReviewPanelView: View {
             // The countdown rides the button it actually does: Done.
             Button(countdownLabel("Done")) { closeSession() }
                 .buttonStyle(TileButtonStyle())
+            undoButton
         }
         .task(id: answered) { await runAutoClose() }
+    }
+
+    /// Anki's Undo, on the end screens too: the last card of a batch or of
+    /// the day is the one people most often want to re-grade. Changing the
+    /// phase is what cancels the auto-close countdown.
+    private var undoButton: some View {
+        Button("Undo") {
+            secondsUntilClose = nil
+            Task { await state.undoReview() }
+        }
+        .buttonStyle(TileButtonStyle())
+        .disabled(!session.canUndo)
+        .help("Undo last answer (⌘Z)")
     }
 
     /// Every deck is drained. Nothing is left to decide, so this closes
@@ -202,10 +216,13 @@ struct ReviewPanelView: View {
         }
         Text("Answered \(session.answeredCount) card\(session.answeredCount == 1 ? "" : "s").")
             .foregroundStyle(PanelTheme.secondaryText)
-        Button(countdownLabel("Done")) { closeSession() }
-            .buttonStyle(TileButtonStyle())
-            .keyboardShortcut(.defaultAction)
-            .task { await runAutoClose() }
+        HStack(spacing: 8) {
+            Button(countdownLabel("Done")) { closeSession() }
+                .buttonStyle(TileButtonStyle())
+                .keyboardShortcut(.defaultAction)
+            undoButton
+        }
+        .task { await runAutoClose() }
     }
 
     private func batchSummary(answered: Int) -> String {
@@ -274,6 +291,11 @@ struct ReviewPanelView: View {
                 .foregroundStyle(PanelTheme.secondaryText)
                 .lineLimit(1)
             Spacer()
+            HeaderIconButton(systemImage: "arrow.uturn.backward",
+                             label: "Undo last answer (⌘Z)") {
+                Task { await state.undoReview() }
+            }
+            .disabled(!session.canUndo)
             CloseButton { closeSession() }
         }
     }

@@ -25,6 +25,14 @@ public protocol AnkiConnectClient: Sendable {
 
     /// Kick off a collection sync with AnkiWeb, as if the user pressed Sync.
     func sync() async throws
+
+    /// Undo Anki's most recent operation — for ReviewBar, the last
+    /// `guiAnswerCard`. Anki runs it in the background and refreshes its
+    /// reviewer only while its own window is focused, so the card on screen
+    /// in Anki is *stale* when this returns; see `ReviewSession.undo()` for
+    /// how the reviewer is made to catch up.
+    func undo() async throws
+
 }
 
 /// Live implementation speaking AnkiConnect's JSON-over-HTTP protocol.
@@ -114,6 +122,10 @@ public actor AnkiConnectHTTPClient: AnkiConnectClient {
 
     public func sync() async throws {
         try await invokeVoid("sync")
+    }
+
+    public func undo() async throws {
+        let _: Bool = try await invoke("guiUndo")
     }
 
     // MARK: Transport

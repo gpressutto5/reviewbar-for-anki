@@ -422,6 +422,18 @@ final class AppState {
         return true
     }
 
+    /// Take back the last answer — the panel's Undo button and ⌘Z, matching
+    /// Anki's own Undo. `ReviewSession.undo()` owns the Anki side; this only
+    /// keeps the reminder heartbeat honest afterwards.
+    func undoReview() async {
+        guard await session.undo() else { return }
+        // Anki drops the undone review from its reviewed-today counter. Told
+        // in advance, the monitor reads the lower count as "unchanged" rather
+        // than as a day rollover, which would wipe the reminder clock.
+        reviewMonitor.noteUndo()
+        await refresh()
+    }
+
     /// Take another batch without leaving Anki's reviewer. The panel stays
     /// open; nothing is re-gathered.
     func continueReviewBatch() async {

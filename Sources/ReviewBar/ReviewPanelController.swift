@@ -128,6 +128,10 @@ final class ReviewPanelController {
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered, defer: false)
         panel.openSettings = { [weak state] in state?.openSettingsWindow() }
+        panel.undo = { [weak state] in
+            guard let state else { return }
+            Task { await state.undoReview() }
+        }
         panel.handleReviewKey = { [weak state] key in
             state?.handleReviewKey(key) ?? false
         }
@@ -153,6 +157,9 @@ final class ReviewPanelController {
 /// the Return/Escape shortcuts.
 private final class ReviewPanel: NSPanel {
     var openSettings: (() -> Void)?
+    /// ⌘Z — Anki's Undo. A key equivalent rather than a plain review key so
+    /// it can't be typed by accident, and so it matches Anki's binding.
+    var undo: (() -> Void)?
     /// Unmodified review keys (space/Return, the rating keys). Consulted
     /// before the responder chain — see `keyMonitor` in the controller.
     var handleReviewKey: ((String) -> Bool)?
@@ -161,12 +168,22 @@ private final class ReviewPanel: NSPanel {
 
     /// ⌘, opens Settings while reviewing. The status menu's own ⌘, item only
     /// fires while that menu is open, so the key panel has to handle it.
+    /// ⌘Z undoes the last answer; the card's web view would otherwise claim
+    /// it as a (pointless) text-editing undo.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             .subtracting(.capsLock)
-        if flags == .command, event.charactersIgnoringModifiers == "," {
-            openSettings?()
-            return true
+        if flags == .command {
+            switch event.charactersIgnoringModifiers {
+            case ",":
+                openSettings?()
+                return true
+            case "z":
+                undo?()
+                return true
+            default:
+                break
+            }
         }
         return super.performKeyEquivalent(with: event)
     }

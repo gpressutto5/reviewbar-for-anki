@@ -133,6 +133,23 @@ rollover) are ReviewBarKit logic so they can be table-tested; the app only
 supplies the reading and the clock, and `reviewedToday` is derived from the
 monitor rather than stored a second time.
 
+**Undo re-enters the deck, because `guiUndo` alone changes nothing on
+screen.** `guiUndo` only *schedules* `mw.undo()` (a background
+`CollectionOp`), and Anki's reviewer refreshes after an operation only while
+Anki's own window is focused (`Reviewer.op_executed` → `refresh_if_needed`
+gated on `focused`) — with ReviewBar in front it isn't, so `guiCurrentCard`
+keeps returning the stale card. `ReviewSession.undo()` therefore calls
+`guiDeckReview` on the deck already being reviewed, which forces
+`Reviewer.show()` → `nextCard()`; selecting the *same* deck does not clear
+Anki's study queue (`set_current_deck_inner` only does on change), so the
+undone card is at its front. The fetch is polled briefly because it can
+outrun the background undo. Undo history is per deck and cleared by bury and
+suspend — Anki's undo takes back its *latest* operation whatever it was, and
+entering another deck and suspending are both operations. An undo also drops
+Anki's reviewed-today counter by one; `AppState.undoReview()` calls
+`ReviewCounterMonitor.noteUndo()` first, or the drop reads as a day rollover
+and wipes the reminder clock.
+
 **Sync on close is opt-in (`SessionSettings.syncOnClose`, default off).**
 It used to run unconditionally after any answered card, and people who went
 back to Anki found it mid-sync. Don't turn it back on by default.

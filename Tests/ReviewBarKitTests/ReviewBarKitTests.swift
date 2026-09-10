@@ -279,6 +279,124 @@ import Testing
     }
 }
 
+@Suite @MainActor struct ReviewSessionUndoTests {
+    @Test func undoBringsTheLastCardBackOnItsQuestionSide() async throws {
+        let mock = MockAnkiConnectClient()
+        let session = ReviewSession(client: mock)
+        await session.start(decks: ["Sample"])
+        #expect(!session.canUndo)
+
+        await session.revealAnswer()
+        await session.submit(ease: .good)
+        guard case .question(let second) = session.phase, second.cardId == 2 else {
+            Issue.record("expected card 2, got \(session.phase)"); return
+        }
+        #expect(session.canUndo)
+
+        #expect(await session.undo())
+        guard case .question(let card) = session.phase else {
+            Issue.record("expected the undone card, got \(session.phase)"); return
+        }
+        #expect(card.cardId == 1)
+        #expect(session.answeredCount == 0)
+        #expect(await mock.answered.isEmpty)
+        #expect(await mock.undoCount == 1)
+        // Nothing left to take back.
+        #expect(!session.canUndo)
+        #expect(await session.undo() == false)
+        #expect(await mock.undoCount == 1)
+    }
+
+    @Test func undoWorksFromAFinishedBatch() async throws {
+        let mock = MockAnkiConnectClient()
+        let session = ReviewSession(client: mock)
+        await session.start(decks: ["Sample"], cardLimit: 1)
+        await session.revealAnswer()
+        await session.submit(ease: .easy)
+        #expect(session.phase == .batchComplete(answered: 1))
+        #expect(session.canUndo)
+
+        await session.undo()
+        guard case .question(let card) = session.phase else {
+            Issue.record("expected the undone card, got \(session.phase)"); return
+        }
+        #expect(card.cardId == 1)
+        #expect(session.batchAnsweredCount == 0)
+        // Re-grading completes the batch again — the budget wasn't spent twice.
+        await session.revealAnswer()
+        await session.submit(ease: .good)
+        #expect(session.phase == .batchComplete(answered: 1))
+        #expect(await mock.answered.map(\.ease) == [.good])
+    }
+
+    @Test func undoWorksAfterTheLastCardOfTheDay() async throws {
+        let mock = MockAnkiConnectClient(queue: [MockAnkiConnectClient.sampleQueue[0]])
+        let session = ReviewSession(client: mock)
+        await session.start(decks: ["Sample"])
+        await session.revealAnswer()
+        await session.submit(ease: .again)
+        #expect(session.phase == .finished)
+        #expect(session.canUndo)
+
+        await session.undo()
+        guard case .question(let card) = session.phase else {
+            Issue.record("expected the undone card, got \(session.phase)"); return
+        }
+        #expect(card.cardId == 1)
+        await session.revealAnswer()
+        await session.submit(ease: .good)
+        #expect(session.phase == .finished)
+        #expect(session.answeredCount == 1)
+    }
+
+    @Test func undoIsUnavailableMidRequestAndBeforeAnyAnswer() async throws {
+        let session = ReviewSession(client: MockAnkiConnectClient())
+        #expect(!session.canUndo)
+        await session.start(decks: ["Sample"])
+        await session.revealAnswer()
+        #expect(!session.canUndo)
+        #expect(await session.undo() == false)
+        guard case .answer = session.phase else {
+            Issue.record("a refused undo changed the phase to \(session.phase)"); return
+        }
+    }
+
+    @Test func undoingBackIntoThePreviousBatchReopensIt() async throws {
+        let mock = MockAnkiConnectClient()
+        let session = ReviewSession(client: mock)
+        await session.start(decks: ["Sample"], cardLimit: 1)
+        await session.revealAnswer()
+        await session.submit(ease: .good)
+        await session.continueBatch()
+        guard case .question(let card) = session.phase, card.cardId == 2 else {
+            Issue.record("expected card 2, got \(session.phase)"); return
+        }
+        await session.undo()
+        guard case .question(let undone) = session.phase, undone.cardId == 1 else {
+            Issue.record("expected card 1 back, got \(session.phase)"); return
+        }
+        #expect(session.answeredCount == 0)
+        #expect(session.batchAnsweredCount == 0)
+    }
+
+    /// Entering another deck is itself on Anki's undo stack, so answers from
+    /// the deck before are out of reach.
+    @Test func undoDoesNotCrossADeckBoundary() async throws {
+        let client = MultiDeckClient(queues: [
+            "A": [MockAnkiConnectClient.sampleQueue[0]],
+            "B": [MockAnkiConnectClient.sampleQueue[1]],
+        ])
+        let session = ReviewSession(client: client)
+        await session.start(decks: ["A", "B"])
+        await session.revealAnswer()
+        await session.submit(ease: .good)
+        guard case .question(let card) = session.phase, card.cardId == 2 else {
+            Issue.record("expected deck B's card, got \(session.phase)"); return
+        }
+        #expect(!session.canUndo)
+    }
+}
+
 @Suite @MainActor struct ReviewSessionTests {
     @Test func happyPathReviewsWholeQueue() async throws {
         let mock = MockAnkiConnectClient()
@@ -476,6 +594,7 @@ private actor MultiDeckClient: AnkiConnectClient {
     func mediaDirPath() async throws -> String { "/tmp" }
     func sync() async throws {}
     func numCardsReviewedToday() async throws -> Int { reviewedCount }
+    func undo() async throws {}
 
     func startReview(deckName: String) async throws {
         activeDeck = queues[deckName]?.isEmpty == false ? deckName : nil
