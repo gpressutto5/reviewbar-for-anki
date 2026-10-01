@@ -162,6 +162,51 @@ import Testing
         #expect(!state.nudge!.isLive(at: at(18), lifetime: settings.nudgeLifetime))
     }
 
+    @Test func pillRetractsOnceNothingIsWaiting() {
+        var state = ready(lastReviewAt: at(16))
+        state.recordNudge(rung: .peek, at: at(17))
+        #expect(state.showsNudge(settings: settings, at: at(17, 5)))
+
+        // Caught up without a review being recorded (cards buried, or done in
+        // Anki before the counter was read): the pill goes in, the nudge stays.
+        state.due = DueBreakdown(learnCount: 2)
+        #expect(!state.showsNudge(settings: settings, at: at(17, 10)))
+        #expect(state.nudge != nil)
+
+        // Something comes due again within the lifetime: the same nudge shows.
+        state.due = DueBreakdown(reviewCount: 1)
+        #expect(state.showsNudge(settings: settings, at: at(17, 20)))
+    }
+
+    // MARK: Unknown due count (Anki away since the day rolled over)
+
+    @Test func unknownCountStillNudges() {
+        // A new day almost always brings cards; silence until Anki opens would
+        // never remind someone who hasn't opened it.
+        var state = ready(lastReviewAt: nil)
+        state.due = nil
+        #expect(plan(settings, state, at(10, 30)) == .nudge(.peek))
+        state.recordNudge(rung: .peek, at: at(10, 30))
+        #expect(state.showsNudge(settings: settings, at: at(10, 31)))
+    }
+
+    @Test func readingStandsUntilAnkisDayRollsOver() {
+        let reading = DueReading(due: DueBreakdown(reviewCount: 5), readAt: at(22))
+        #expect(reading.isCurrent(at: at(23), settings: settings, calendar: calendar))
+        // Past midnight is still the same Anki day (rollover at 04:00)…
+        #expect(reading.isCurrent(at: at(3, 59, day: 29), settings: settings,
+                                  calendar: calendar))
+        // …and after the rollover the reading says nothing about today.
+        #expect(!reading.isCurrent(at: at(4, 1, day: 29), settings: settings,
+                                   calendar: calendar))
+    }
+
+    @Test func readingTakenBeforeTheRolloverIsStaleAfterIt() {
+        let reading = DueReading(due: DueBreakdown(), readAt: at(3, 30))
+        #expect(reading.isCurrent(at: at(3, 45), settings: settings, calendar: calendar))
+        #expect(!reading.isCurrent(at: at(9), settings: settings, calendar: calendar))
+    }
+
     // MARK: Rung selection
 
     @Test func aHiddenNotchNotifiesInstead() {

@@ -170,7 +170,10 @@ are rejected. Keep it that way rather than adding flags.
 
 **The nudge ladder picks one rung by visibility, not by elapsed time.** A notch
 peek stays out until acknowledged (hover or opening the review) — its visibility
-is derived from the outstanding nudge (`ActiveNudge.isLive`), never a timer. The
+is derived from the outstanding nudge (`ReminderState.showsNudge`: live *and*
+something still waiting), never a timer. The waiting half matters — due counts
+reach zero without a review being recorded (a nudge fired on a stale count, cards
+buried or suspended, reviews done in Anki before the counter is read). The
 notification rung is for when the notch *can't be seen* (fullscreen app,
 auto-hidden menu bar); time-based escalation was tried and removed, because
 notifying someone who already has a pill with the due count on screen is nagging.
@@ -383,6 +386,17 @@ field content for anchor/audio elements. It emits Anki-shaped
 
 **Strip U+2068/U+2069** (bidi isolates) from `nextReviews` before display —
 `CurrentCard.displayIntervals` does this.
+
+**A closed Anki keeps its last count until Anki's day rolls over.** The badge,
+the pill and the nudge gate read the persisted `DueReading` when Anki doesn't
+answer: new and review counts only grow at the rollover, so the last reading
+stands for the rest of that Anki day — caught up stays quiet, cards left get a
+nudge with a number on it. Past the rollover the count is unknown
+(`ReminderState.due == nil`): the menu bar shows "–", the gate treats unknown as
+cards waiting, `applyDueReading` resets the reminder clock (and the counter
+monitor, so Anki's lower count on return isn't a second rollover), and a nudge's
+pill shows "?". Don't go back to blanking the count on disconnect — a nudge with
+no number on it reads as broken.
 
 **Connection reset/refused means Anki may be dead** (observed in the live spike, no
 crash report). Treat it as `.unreachable`, verify, and offer relaunch — `open -a Anki`

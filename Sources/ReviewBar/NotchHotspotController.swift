@@ -158,10 +158,11 @@ struct NotchHotspotView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    /// Remaining reviews; a checkmark when caught up, nothing when the due
-    /// count is unknown (Anki unreachable).
+    /// Remaining reviews; a checkmark when caught up. The count is unknown
+    /// only once Anki's day has rolled over without Anki answering: a nudge
+    /// then says "?" — it is still worth giving — and a hover peek nothing.
     private var badge: String? {
-        guard let dueCount = state.dueCount else { return nil }
+        guard let dueCount = state.dueCount else { return state.isPeeking ? "?" : nil }
         return dueCount > 0 ? "\(dueCount)" : "✓"
     }
 }

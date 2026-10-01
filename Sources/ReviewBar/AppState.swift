@@ -110,6 +110,15 @@ final class AppState {
     }
 
     private(set) var reminder: ReminderState
+    /// The last due count Anki reported, persisted so that neither Anki
+    /// closing nor ReviewBar relaunching blanks it. See `applyDueReading`.
+    private var lastDueReading: DueReading? {
+        didSet {
+            guard lastDueReading != oldValue, let lastDueReading,
+                  let data = try? JSONEncoder().encode(lastDueReading) else { return }
+            defaults.set(data, forKey: Self.dueReadingKey)
+        }
+    }
     /// Compares successive readings of Anki's reviewed-today counter and feeds
     /// `reminder`; the only owner of `reviewedToday`.
     private var reviewMonitor = ReviewCounterMonitor()
@@ -172,8 +181,18 @@ final class AppState {
         self.reviewShortcuts = Self.loadReviewShortcuts(from: defaults)
         self.reviewDisplay = Self.loadReviewDisplay(from: defaults)
         self.sessionSettings = Self.loadSessionSettings(from: defaults)
-        self.reminderSettings = Self.loadReminderSettings(from: defaults)
-        var reminder = ReminderState()
+        let reminderSettings = Self.loadReminderSettings(from: defaults)
+        self.reminderSettings = reminderSettings
+        // Applied directly rather than through `applyDueReading`: a reading
+        // from an earlier Anki day isn't a rollover seen while running, and
+        // treating it as one would clear the startup grace below.
+        let reading = defaults.data(forKey: Self.dueReadingKey)
+            .flatMap { try? JSONDecoder().decode(DueReading.self, from: $0) }
+        let currentDue = reading.flatMap {
+            $0.isCurrent(at: Date(), settings: reminderSettings) ? $0.due : nil }
+        self.lastDueReading = reading
+        self.dueCount = currentDue?.total
+        var reminder = ReminderState(due: currentDue)
         reminder.snooze(until: Date().addingTimeInterval(Self.startupGrace))
         self.reminder = reminder
     }
@@ -276,10 +295,10 @@ final class AppState {
                                               state: reminder, now: now)
         nudgeDecision = decision
         // The pill's visibility is a function of state, re-derived every tick,
-        // so it retracts on acknowledgement, review, snooze or lifetime end
-        // without anything having to remember to retract it.
-        defer { isPeeking = reminder.nudge?.isLive(
-            at: now, lifetime: reminderSettings.nudgeLifetime) ?? false }
+        // so it retracts on acknowledgement, review, snooze, lifetime end or
+        // the due count reaching zero without anything having to remember to
+        // retract it.
+        defer { isPeeking = reminder.showsNudge(settings: reminderSettings, at: now) }
 
         guard case .nudge(let rung) = decision else { return }
         // Record before firing: `recordNudge` is what counts an unresolved
@@ -553,12 +572,11 @@ final class AppState {
 
     /// Count beside the menu bar glyph. The glyph alone means "caught up";
     /// text appears only when there is something to count or report.
+    /// With Anki closed this is still the last count it reported, until its
+    /// day rolls over (`applyDueReading`); only an unknown count reads "–".
     var menuBarTitle: String {
-        switch connection {
-        case .connected where dueCount ?? 0 > 0: "\(dueCount!)"
-        case .connected: ""
-        default: "–"
-        }
+        guard let dueCount else { return "–" }
+        return dueCount > 0 ? "\(dueCount)" : ""
     }
 
     var dueSummary: String {
@@ -708,14 +726,42 @@ final class AppState {
             // nudging over decks the user excluded would be wrong.
             let stats = try await client.deckStats(
                 decks: DueCount.scoped(topLevel, to: reviewDeckScope))
-            reminder.due = DueCount.breakdown(from: stats)
-            dueCount = reminder.due.total
+            lastDueReading = DueReading(due: DueCount.breakdown(from: stats),
+                                        readAt: Date())
+            applyDueReading()
             observeReviewCounter(try await client.numCardsReviewedToday())
             connection = .connected(apiVersion: apiVersion)
         } catch {
             connection = .from(error)
-            dueCount = nil
+            applyDueReading()
         }
+        // A caught-up count (or a newly seen review) retracts the pill now
+        // rather than on the next tick.
+        isPeeking = reminder.showsNudge(settings: reminderSettings, at: Date())
+    }
+
+    /// What the badge and the nudge gate see. Connected, that is the reading
+    /// just taken; with Anki closed, the last one stands until Anki's day
+    /// rolls over (see `DueReading`). After that nothing is known: the badge
+    /// goes back to "–", the gate assumes the new day brought cards, and a
+    /// nudge's pill says "?".
+    private func applyDueReading(now: Date = Date()) {
+        if let reading = lastDueReading,
+           reading.isCurrent(at: now, settings: reminderSettings) {
+            reminder.due = reading.due
+            dueCount = reading.due.total
+            return
+        }
+        if reminder.due != nil {
+            // The day rolled over while Anki was away. The counter can't
+            // report it, so reset the clock here — and forget the last
+            // counter reading, or Anki's lower count on return would read as
+            // a second rollover and wipe whatever was snoozed since.
+            reminder.recordDayRollover()
+            reviewMonitor = ReviewCounterMonitor()
+        }
+        reminder.due = nil
+        dueCount = nil
     }
 
     // MARK: Updates
@@ -759,6 +805,7 @@ final class AppState {
     private static let shortcutsKey = "reviewShortcuts"
     private static let sessionKey = "sessionSettings"
     private static let displayKey = "reviewDisplay"
+    private static let dueReadingKey = "lastDueReading"
 
     private static func loadSessionSettings(from defaults: UserDefaults) -> SessionSettings {
         var settings = SessionSettings()

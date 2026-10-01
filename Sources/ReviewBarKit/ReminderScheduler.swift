@@ -120,6 +120,14 @@ public struct ReminderSettings: Codable, Equatable, Sendable {
                           matchingPolicy: .nextTime, direction: .backward) ?? date
     }
 
+    /// Most recent Anki day rollover at or before `date` — where "today"
+    /// starts as far as Anki's due counts are concerned.
+    public func ankiDayStart(atOrBefore date: Date, calendar: Calendar = .current) -> Date {
+        calendar.nextDate(after: date,
+                          matching: DateComponents(hour: dayRolloverHour, minute: 0),
+                          matchingPolicy: .nextTime, direction: .backward) ?? date
+    }
+
     private var startComponents: DateComponents {
         DateComponents(hour: activeStart.hour, minute: activeStart.minute)
     }
@@ -172,7 +180,7 @@ public struct ActiveNudge: Equatable, Sendable {
 }
 
 /// Per-deck due counts split the way the nudge gate needs them.
-public struct DueBreakdown: Equatable, Sendable {
+public struct DueBreakdown: Codable, Equatable, Sendable {
     public let newCount: Int
     public let learnCount: Int
     public let reviewCount: Int
@@ -194,7 +202,11 @@ public struct ReminderState: Equatable, Sendable {
     /// counter going up, so reviews done inside Anki count too. Nil means none
     /// observed yet today, and the clock starts at the active window's opening.
     public var lastReviewAt: Date?
-    public var due: DueBreakdown
+    /// Nil when unknown: Anki hasn't answered since its day rolled over (see
+    /// `DueReading`). Unknown counts as something waiting — a new day almost
+    /// always brings cards, and staying silent until Anki opens would mean
+    /// never reminding someone who hasn't opened it.
+    public var due: DueBreakdown?
     public var nudge: ActiveNudge?
     /// Consecutive nudges that produced no review. Drives backoff.
     public var ignoredNudgeCount: Int
@@ -209,7 +221,7 @@ public struct ReminderState: Equatable, Sendable {
     public var isNotchHidden: Bool
 
     public init(lastReviewAt: Date? = nil,
-                due: DueBreakdown = DueBreakdown(),
+                due: DueBreakdown? = DueBreakdown(),
                 nudge: ActiveNudge? = nil,
                 ignoredNudgeCount: Int = 0,
                 snoozeUntil: Date? = nil,
@@ -269,6 +281,28 @@ public struct ReminderState: Equatable, Sendable {
         snoozeUntil = date
         nudge = nil
     }
+
+    // MARK: Derived
+
+    /// Whether anything counts as waiting — the nudge gate. An unknown count
+    /// does (see `due`).
+    public func hasCardsWaiting(settings: ReminderSettings) -> Bool {
+        guard let due else { return true }
+        return (settings.gateIgnoresLearningCards ? due.excludingLearning : due.total) > 0
+    }
+
+    /// Whether the notch pill is out as a nudge: a live nudge *and* something
+    /// still waiting. Due counts can reach zero without a review being
+    /// recorded — the nudge fired on a stale count, cards were buried or
+    /// suspended, the reviews happened in Anki and the counter hasn't been
+    /// read yet — and a caught-up user must not be left looking at a pill
+    /// for the rest of its lifetime. The nudge itself is kept, so the
+    /// interval still runs from it.
+    public func showsNudge(settings: ReminderSettings, at now: Date) -> Bool {
+        guard nudge?.isLive(at: now, lifetime: settings.nudgeLifetime) == true
+        else { return false }
+        return hasCardsWaiting(settings: settings)
+    }
 }
 
 public enum NudgeWaitReason: Equatable, Sendable {
@@ -315,9 +349,7 @@ public enum ReminderScheduler {
         guard settings.mode == .nudge else { return .idle(.disabled) }
         if state.isPanelOpen { return .idle(.panelOpen) }
 
-        let waiting = settings.gateIgnoresLearningCards
-            ? state.due.excludingLearning : state.due.total
-        guard waiting > 0 else { return .idle(.caughtUp) }
+        guard state.hasCardsWaiting(settings: settings) else { return .idle(.caughtUp) }
 
         if let snoozeUntil = state.snoozeUntil, snoozeUntil > now {
             return .wait(until: snoozeUntil, reason: .snoozed)
